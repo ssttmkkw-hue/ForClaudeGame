@@ -12,6 +12,8 @@ R.init = function (canvas) {
   R.resize();
   window.addEventListener('resize', R.resize);
   window.addEventListener('orientationchange', () => setTimeout(R.resize, 200));
+  cv.addEventListener('contextlost', e => e.preventDefault());
+  cv.addEventListener('contextrestored', R.reset);
 };
 R.resize = function () {
   W = window.innerWidth; H = window.innerHeight;
@@ -23,6 +25,13 @@ R.resize = function () {
   groundPat = null;
 };
 R.onStart = function () { groundPat = null; };
+// 画布/贴图被系统回收或绘制出错后的恢复：重建全部缓存
+R.reset = function () {
+  groundPat = null; patStage = null;
+  Sp.clear();
+  if (G.enemies) for (const e of G.enemies) e.spr = Sp.enemy(e.def);
+  R.resize();
+};
 
 function getPattern() {
   if (groundPat && patStage === G.stage.id) return groundPat;

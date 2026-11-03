@@ -216,6 +216,10 @@ function openModal(html, lock) {
   modal.innerHTML = html; modal.classList.add('on');
   lockUntil = performance.now() + (lock || 0);
 }
+// 回到前台时若处于暂停但弹窗丢失，则重新显示
+UI.ensurePause = function () {
+  if (G.state === 'paused' && !modal.classList.contains('on')) UI.showPause();
+};
 UI.hideModal = function () { modal.classList.remove('on'); modal.innerHTML = ''; };
 
 /* ------------------------- 对局内弹窗 ------------------------- */

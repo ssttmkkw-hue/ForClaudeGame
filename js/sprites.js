@@ -229,6 +229,7 @@ const SHAPES = {
 
 /* ------------------------- 敌人烘焙 ------------------------- */
 const enemyCache = {};
+
 Sp.enemy = function (def) {
   let e = enemyCache[def.id];
   if (e) return e;
@@ -474,5 +475,13 @@ Sp.bigDeco = function (g, kind, x, y, h) {
       ell(g, x, y, 28, 12, '#2a1a1c'); ell(g, x, y, 23, 9, '#ff6a2a'); ell(g, x, y - 1, 15, 5, '#ffb44a');
     }
   }
+};
+// 清空所有烘焙缓存（移动端切后台后画布可能被系统回收）
+Sp.clear = function () {
+  for (const k in enemyCache) delete enemyCache[k];
+  for (const k in glowCache) delete glowCache[k];
+  for (const k in iconCache) delete iconCache[k];
+  for (const k in groundCache) delete groundCache[k];
+  gemCache.length = 0;
 };
 })(window.SF = window.SF || {});

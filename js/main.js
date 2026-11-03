@@ -23,7 +23,15 @@ function boot() {
   let lastTouchEnd = 0;
   document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastTouchEnd < 300) e.preventDefault(); lastTouchEnd = n; }, { passive: false });
 
-  let last = performance.now();
+  let last = performance.now(), errCount = 0;
+  // 从后台回来：重建画布与贴图，并保证暂停弹窗可见
+  const revive = () => {
+    last = performance.now();
+    try { SF.Render.reset(); } catch (e) { /* 忽略 */ }
+    SF.UI.ensurePause();
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) revive(); });
+  window.addEventListener('pageshow', revive);
   function frame(now) {
     requestAnimationFrame(frame);
     let dt = (now - last) / 1000; last = now;
@@ -32,8 +40,15 @@ function boot() {
       const n = Math.max(1, Math.ceil(dt / 0.034));
       for (let i = 0; i < n; i++) SF.Game.update(dt / n);
     }
-    if (G.stage && G.p && G.state !== 'menu') SF.Render.draw();
-    SF.UI.updateHud();
+    if (G.stage && G.p && G.state !== 'menu') {
+      try { SF.Render.draw(); errCount = 0; }
+      catch (e) {
+        // 绘制出错（如贴图被回收）：重置缓存后下一帧重试
+        if (errCount++ < 3) console.error('render error', e);
+        try { SF.Render.reset(); } catch (e2) { /* 忽略 */ }
+      }
+    }
+    try { SF.UI.updateHud(); } catch (e) { /* 忽略 */ }
   }
   requestAnimationFrame(frame);
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
