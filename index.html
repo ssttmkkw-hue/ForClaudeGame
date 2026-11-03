@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="星陨战记">
+<title>星陨战记</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="cv"></canvas>
+  <div id="touch"></div>
+  <div id="joy"><b></b><i></i></div>
+  <div id="vig"></div>
+  <div id="hud">
+    <div id="xpbar"><i></i><span id="lvl">Lv.1</span></div>
+    <div id="top">
+      <div id="hpbar"><i></i><span id="hptxt">100/100</span></div>
+      <div id="timer">00:00</div>
+      <div id="stats"><span id="kills">💀 0</span><span id="gold">🪙 0</span></div>
+      <button id="btn-pause" aria-label="暂停">⏸</button>
+    </div>
+    <div id="items"></div>
+    <div id="bossbar"><em id="bossname"></em><div><i></i></div></div>
+    <div id="banner"></div>
+  </div>
+  <div id="screens"></div>
+  <div id="modal"></div>
+  <div id="toasts"></div>
+</div>
+<div id="rotate">请竖屏游玩体验更佳 📱</div>
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
