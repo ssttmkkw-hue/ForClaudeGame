@@ -6,10 +6,15 @@ const UI = SF.UI = {};
 const $ = s => document.querySelector(s);
 let scr, modal, cur = 'menu', focusChar = null, lockUntil = 0;
 const hud = {};
+const I = k => SF.Icons.img(k);
+const COIN = () => '<i class="coin"></i>';
 
 UI.init = function () {
   scr = $('#screens'); modal = $('#modal');
   for (const id of ['xpbar', 'lvl', 'hpbar', 'hptxt', 'timer', 'kills', 'gold', 'items', 'bossbar', 'bossname', 'banner', 'vig']) hud[id] = document.getElementById(id);
+  hud.kills.innerHTML = `<img class="ico" src="${SF.Icons.url('x:skull')}" alt=""><b>0</b>`;
+  hud.gold.innerHTML = `${COIN()}<b>0</b>`;
+  hud.killsN = hud.kills.querySelector('b'); hud.goldN = hud.gold.querySelector('b');
   hud.xpi = hud.xpbar.querySelector('i'); hud.hpi = hud.hpbar.querySelector('i'); hud.bossi = hud.bossbar.querySelector('i');
   document.getElementById('app').addEventListener('click', onClick);
   document.getElementById('btn-pause').addEventListener('click', e => { e.stopPropagation(); SF.Audio.resume(); SF.Game.pause(); });
@@ -23,7 +28,7 @@ function stars() {
   for (let i = 0; i < 26; i++) s += `<i style="left:${(Math.random() * 100).toFixed(1)}%;top:${(Math.random() * 100).toFixed(1)}%;animation-delay:${(Math.random() * 3).toFixed(1)}s;transform:scale(${(0.5 + Math.random()).toFixed(2)})"></i>`;
   return s + '</div>';
 }
-function goldChip() { return `<div class="gold-chip">🪙 ${U.fmtNum(Save.data.gold)}</div>`; }
+function goldChip() { return `<div class="gold-chip">${COIN()}${U.fmtNum(Save.data.gold)}</div>`; }
 function pips(lv, max) { let s = '<div class="pips">'; for (let i = 0; i < max; i++) s += `<i class="${i < lv ? 'on' : ''}"></i>`; return s + '</div>'; }
 function bar(title, back) {
   return `<div class="bar"><button class="back" data-act="${back || 'goMenu'}" aria-label="返回">‹</button><h2>${title}</h2>${goldChip()}</div>`;
@@ -41,7 +46,7 @@ const VIEWS = {
       <div class="btns">
         <button class="btn gold" data-act="goSelect">⚔ 出 征</button>
         <button class="btn" data-act="goShop">⬆ 强化商店</button>
-        <div class="row"><button class="btn sec" data-act="goAch">🏆 成就</button><button class="btn sec" data-act="goSet">⚙ 设置</button></div>
+        <div class="row"><button class="btn sec" data-act="goAch">${I('x:trophy')}成就</button><button class="btn sec" data-act="goSet">⚙ 设置</button></div>
       </div>
       <div class="foot">拖动屏幕移动 · 武器自动攻击 · 存活并击败 Boss</div>
     </div>`;
@@ -53,23 +58,23 @@ const VIEWS = {
       const s = SF.STAGES[id], ok = d.stages.includes(id), best = d.best[id] ? U.fmtTime(d.best[id]) : '--:--';
       const win = d.best[id + '_win'] ? ' ✔' : '';
       h += `<button class="card stage-card ${d.sel.stage === id && ok ? 'sel' : ''} ${ok ? '' : 'lock'}" data-act="stage" data-id="${id}">
-        <div class="top"><div class="ic">${ok ? s.icon : '🔒'}</div><div class="nm">${s.name}<div class="st">${'★'.repeat(s.diff)}${'☆'.repeat(4 - s.diff)}</div></div></div>
+        <div class="top"><div class="ic">${ok ? I('s:' + id) : '🔒'}</div><div class="nm">${s.name}<div class="st">${'★'.repeat(s.diff)}${'☆'.repeat(4 - s.diff)}</div></div></div>
         <div class="ds meta">${ok ? '最长 ' + best + win + ' · 金币×' + s.goldMul : '🔒 通关上一关解锁'}</div></button>`;
     }
-    h += `</div><div class="stage-desc">${SF.STAGES[d.sel.stage].icon} ${SF.STAGES[d.sel.stage].desc}</div><div>`;
+    h += `</div><div class="stage-desc">${SF.STAGES[d.sel.stage].desc}</div><div>`;
         h += `</div><div class="sec-t">选择角色</div><div class="chars">`;
     for (const id in SF.CHARS) {
       const c = SF.CHARS[id], own = d.chars.includes(id);
       h += `<button class="chr ${focusChar === id ? 'sel' : ''} ${own ? '' : 'lock'}" data-act="char" data-id="${id}">
-        <img alt="" src="${SF.Sprites.charIcon(id)}"><div class="n">${c.name}</div>${own ? '<div class="pr">&nbsp;</div>' : `<div class="pr">🪙${c.cost}</div>`}</button>`;
+        <img alt="" src="${SF.Sprites.charIcon(id)}"><div class="n">${c.name}</div>${own ? '<div class="pr">&nbsp;</div>' : `<div class="pr">${COIN()}${c.cost}</div>`}</button>`;
     }
     h += '</div>';
     const c = SF.CHARS[focusChar], own = d.chars.includes(focusChar), W = SF.WEAPONS[c.start];
     h += `<div class="detail"><div class="t">${c.name} · ${c.title}</div>
-      <div class="s">初始武器：<b>${W.icon} ${W.name}</b> — ${W.desc}<br>天赋：${c.perk}</div></div>`;
+      <div class="s"><span class="wpn">${SF.Icons.weapon(c.start)}<span>初始武器：<b>${W.name}</b> — ${W.desc}<br>天赋：${c.perk}</span></span></div></div>`;
     h += `<div class="startbar">`;
     if (own) h += `<button class="btn gold" data-act="start">▶ 开始战斗</button>`;
-    else h += `<button class="btn ${d.gold >= c.cost ? 'gold' : 'sec dis'}" data-act="buyChar">🔓 解锁 ${c.name}　🪙 ${c.cost}</button>`;
+    else h += `<button class="btn ${d.gold >= c.cost ? 'gold' : 'sec dis'}" data-act="buyChar">🔓 解锁 ${c.name}　${COIN()}${c.cost}</button>`;
     return h + '</div></div>';
   },
   shop() {
@@ -77,9 +82,9 @@ const VIEWS = {
     let h = `<div class="screen">${bar('强化商店')}<div class="list">`;
     for (const id in SF.META) {
       const m = SF.META[id], lv = d.meta[id] || 0, max = lv >= m.max, cost = max ? 0 : SF.metaCost(id, lv);
-      h += `<div class="card"><div class="ic">${m.icon}</div><div class="bd"><div class="nm">${m.name} <span style="color:var(--dim);font-size:12px">Lv.${lv}/${m.max}</span></div>
+      h += `<div class="card"><div class="ic">${I('m:' + id)}</div><div class="bd"><div class="nm">${m.name} <span style="color:var(--dim);font-size:12px">Lv.${lv}/${m.max}</span></div>
         <div class="ds">${m.txt}</div>${pips(lv, m.max)}</div>
-        <button class="btn sm ${max ? 'sec dis' : d.gold >= cost ? 'gold' : 'sec dis'}" style="min-width:76px" data-act="buy" data-id="${id}">${max ? '已满' : '🪙' + cost}</button></div>`;
+        <button class="btn sm ${max ? 'sec dis' : d.gold >= cost ? 'gold' : 'sec dis'}" style="min-width:76px" data-act="buy" data-id="${id}">${max ? '已满' : COIN() + cost}</button></div>`;
     }
     return h + '</div></div>';
   },
@@ -93,8 +98,8 @@ const VIEWS = {
     const ctx = Object.assign({}, d, { bestTime: bt });
     for (const a of SF.ACHS) {
       const done = !!d.ach[a.id];
-      h += `<div class="card ach ${done ? 'done' : ''}"><div class="ic">${done ? '🏆' : '🔘'}</div><div class="bd"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div></div>
-        <div style="font:800 13px system-ui;color:${done ? '#7aff9a' : 'var(--gold)'}">${done ? '已达成' : '🪙' + a.gold}</div></div>`;
+      h += `<div class="card ach ${done ? 'done' : ''}"><div class="ic${done ? '' : ' off'}">${I('x:trophy')}</div><div class="bd"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div></div>
+        <div style="font:800 13px system-ui;color:${done ? '#7aff9a' : 'var(--gold)'}">${done ? '已达成' : COIN() + a.gold}</div></div>`;
     }
     return h + '</div></div>';
   },
@@ -225,24 +230,24 @@ UI.hideModal = function () { modal.classList.remove('on'); modal.innerHTML = '';
 /* ------------------------- 对局内弹窗 ------------------------- */
 function buildHtml() {
   let h = '<div class="build">';
-  for (const w of G.weapons) { const i = SF.weaponInfo(w.id, w.evo); h += `<span title="${i.name}">${i.icon}<em>${w.lv}</em></span>`; }
-  for (const id in G.passives) h += `<span title="${SF.PASSIVES[id].name}">${SF.PASSIVES[id].icon}<em>${G.passives[id]}</em></span>`;
+  for (const w of G.weapons) h += `<span>${SF.Icons.weapon(w.id, w.evo)}<em>${w.lv}</em></span>`;
+  for (const id in G.passives) h += `<span>${I('p:' + id)}<em>${G.passives[id]}</em></span>`;
   return h + '</div>';
 }
 function optHtml(o, i) {
   let icon, name, desc, cls = '', tag = '';
   if (o.type === 'evo') {
-    const W = SF.WEAPONS[o.id]; icon = W.evo.icon; name = W.evo.name; cls = 'w evo';
+    const W = SF.WEAPONS[o.id]; icon = I('e:' + o.id); name = W.evo.name; cls = 'w evo';
     desc = W.evo.desc + '（' + W.name + ' 进化）'; tag = '<span class="lv new">进化</span>';
   } else if (o.type === 'w' || o.type === 'wn') {
-    const W = SF.WEAPONS[o.id]; icon = W.icon; name = W.name; cls = 'w';
+    const W = SF.WEAPONS[o.id]; icon = I('w:' + o.id); name = W.name; cls = 'w';
     if (o.type === 'wn') { desc = W.desc; tag = '<span class="lv new">NEW</span>'; }
-    else { desc = W.lv[o.lv - 2].t; if (o.lv >= SF.MAX_WLV) desc += `<br><span style="color:#ffd24a">搭配 ${SF.PASSIVES[W.evo.need].icon}${SF.PASSIVES[W.evo.need].name} 可进化</span>`; tag = `<span class="lv ${o.lv >= SF.MAX_WLV ? 'max' : ''}">Lv.${o.lv - 1} → ${o.lv}${o.lv >= SF.MAX_WLV ? ' MAX' : ''}</span>`; }
+    else { desc = W.lv[o.lv - 2].t; if (o.lv >= SF.MAX_WLV) desc += `<br><span style="color:#ffd24a">搭配「${SF.PASSIVES[W.evo.need].name}」可进化</span>`; tag = `<span class="lv ${o.lv >= SF.MAX_WLV ? 'max' : ''}">Lv.${o.lv - 1} → ${o.lv}${o.lv >= SF.MAX_WLV ? ' MAX' : ''}</span>`; }
   } else if (o.type === 'p' || o.type === 'pn') {
-    const P = SF.PASSIVES[o.id]; icon = P.icon; name = P.name; desc = P.txt; cls = 'p';
+    const P = SF.PASSIVES[o.id]; icon = I('p:' + o.id); name = P.name; desc = P.txt; cls = 'p';
     tag = o.type === 'pn' ? '<span class="lv new">NEW</span>' : `<span class="lv ${o.lv >= P.max ? 'max' : ''}">Lv.${o.lv - 1} → ${o.lv}${o.lv >= P.max ? ' MAX' : ''}</span>`;
-  } else if (o.type === 'heal') { icon = '🍖'; name = '美味烤肉'; desc = '回复 40% 最大生命'; }
-  else { icon = '💰'; name = '金币袋'; desc = '获得一笔金币'; }
+  } else if (o.type === 'heal') { icon = I('x:meat'); name = '美味烤肉'; desc = '回复 40% 最大生命'; }
+  else { icon = I('x:coins'); name = '金币袋'; desc = '获得一笔金币'; }
   return `<button class="opt ${cls}" data-act="pick" data-i="${i}"><div class="ic">${icon}</div><div class="bd"><div class="nm">${name} ${tag}</div><div class="ds">${desc}</div></div></button>`;
 }
 UI.showLevelUp = function (opts) {
@@ -255,7 +260,7 @@ UI.showChest = function (list, gold) {
   let h = '<div class="opts">';
   for (const o of list) h += optHtml(o, 0).replace('data-act="pick"', 'data-act="noop"');
   h += '</div>';
-  openModal(`<div class="dlg"><h3 style="color:var(--gold)">🎁 宝箱开启！</h3><div class="hint">获得以下强化，以及 🪙 ${gold}</div>${h}
+  openModal(`<div class="dlg"><h3 style="color:var(--gold)">🎁 宝箱开启！</h3><div class="hint">获得以下强化，以及 ${COIN()}${gold}</div>${h}
     <button class="btn gold" data-act="chestOk">太棒了！</button></div>`, 500);
 };
 UI.showPause = function () {
@@ -268,14 +273,14 @@ UI.showResult = function (r) {
   document.body.classList.remove('playing'); SF.Input.showJoy(false);
   hud.bossbar.style.display = 'none';
   let ach = '';
-  for (const a of r.newAch) ach += `<div class="ach-new">🏆 成就达成：<b>${a.name}</b>　+🪙${a.gold}</div>`;
+  for (const a of r.newAch) ach += `<div class="ach-new">🏆 成就达成：<b>${a.name}</b>　+${COIN()}${a.gold}</div>`;
   if (r.unlocked) ach += `<div class="ach-new">🔓 新关卡解锁：<b>${r.unlocked.name}</b></div>`;
   const title = r.win ? '🏆 战斗胜利！' : r.quit ? '已撤退' : '💀 你倒下了';
   openModal(`<div class="dlg"><h3 class="${r.win ? 'win' : 'lose'}">${title}</h3><div class="hint">${r.stage.name}</div>
     <div class="res-grid"><div><b>${U.fmtTime(r.time)}</b><span>存活时间</span></div><div><b>${r.kills}</b><span>击杀数</span></div>
     <div><b>Lv.${r.level}</b><span>最终等级</span></div><div><b>${r.bosses}</b><span>击败 Boss</span></div>
-    <div><b>🪙 ${r.gold}</b><span>拾取金币</span></div><div><b>🪙 ${r.bonus}</b><span>表现奖励${r.win ? '（通关 ×1.5）' : ''}</span></div></div>
-    <div class="res-total">获得 🪙 ${r.total}</div>${ach}
+    <div><b>${COIN()}${r.gold}</b><span>拾取金币</span></div><div><b>${COIN()}${r.bonus}</b><span>表现奖励${r.win ? '（通关 ×1.5）' : ''}</span></div></div>
+    <div class="res-total">获得 ${COIN()}${r.total}</div>${ach}
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
     <button class="btn gold" data-act="again">↻ 再来一局</button><button class="btn sec" data-act="home">返回主界面</button></div></div>`, 700);
 };
@@ -295,8 +300,8 @@ UI.toast = function (text) {
 };
 UI.refreshItems = function () {
   let h = '';
-  for (const w of G.weapons) h += `<span class="${w.evo ? 'evo' : ''}">${SF.weaponInfo(w.id, w.evo).icon}<em class="${w.lv >= SF.MAX_WLV ? 'max' : ''}">${w.lv}</em></span>`;
-  for (const id in G.passives) h += `<span class="p">${SF.PASSIVES[id].icon}<em class="${G.passives[id] >= SF.PASSIVES[id].max ? 'max' : ''}">${G.passives[id]}</em></span>`;
+  for (const w of G.weapons) h += `<span class="${w.evo ? 'evo' : ''}">${SF.Icons.weapon(w.id, w.evo)}<em class="${w.lv >= SF.MAX_WLV ? 'max' : ''}">${w.lv}</em></span>`;
+  for (const id in G.passives) h += `<span class="p">${I('p:' + id)}<em class="${G.passives[id] >= SF.PASSIVES[id].max ? 'max' : ''}">${G.passives[id]}</em></span>`;
   hud.items.innerHTML = h;
 };
 UI.updateHud = function () {
@@ -309,13 +314,13 @@ UI.updateHud = function () {
   if (c.hp !== hpKey) { c.hp = hpKey; hud.hptxt.textContent = hpKey; hud.hpi.style.width = Math.max(0, P.hp / P.maxHp * 100) + '%'; }
   const tm = U.fmtTime(G.time);
   if (c.tm !== tm) { c.tm = tm; hud.timer.textContent = tm; }
-  if (c.k !== G.kills) { c.k = G.kills; hud.kills.textContent = '💀 ' + G.kills; }
-  if (c.g !== G.gold) { c.g = G.gold; hud.gold.textContent = '🪙 ' + G.gold; }
+  if (c.k !== G.kills) { c.k = G.kills; hud.killsN.textContent = G.kills; }
+  if (c.g !== G.gold) { c.g = G.gold; hud.goldN.textContent = G.gold; }
   const v = Math.max(0, G.hurtFlash).toFixed(2);
   if (c.v !== v) { c.v = v; hud.vig.style.opacity = v; }
   const b = G.bossRef;
   if (b) {
-    if (c.b !== b.id) { c.b = b.id; hud.bossname.textContent = '💀 ' + b.def.name; hud.bossbar.style.display = 'block'; }
+    if (c.b !== b.id) { c.b = b.id; hud.bossname.textContent = b.def.name; hud.bossbar.style.display = 'block'; }
     hud.bossi.style.width = Math.max(0, b.hp / b.maxHp * 100).toFixed(1) + '%';
   } else if (c.b) { c.b = 0; hud.bossbar.style.display = 'none'; }
 };

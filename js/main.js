@@ -9,6 +9,7 @@ function boot() {
   SF.Audio.set(s.sound, s.music);
   SF.Render.init(document.getElementById('cv'));
   SF.Input.init();
+  document.documentElement.style.setProperty('--coin', 'url(' + SF.Sprites.pickupURL('coin') + ')');
   SF.UI.init();
   SF.UI.goMenu();
 
@@ -37,6 +38,7 @@ function boot() {
     let dt = (now - last) / 1000; last = now;
     if (dt > 0.1) dt = 0.1;
     if (G.state === 'play') {
+      SF.Render.perfSample(dt);
       const n = Math.max(1, Math.ceil(dt / 0.034));
       for (let i = 0; i < n; i++) SF.Game.update(dt / n);
     }

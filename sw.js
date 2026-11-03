@@ -1,7 +1,7 @@
 /* 简易离线缓存：网络优先，失败回退缓存 */
-const CACHE = 'starfall-v1';
+const CACHE = 'starfall-v3';
 const ASSETS = ['./', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icon.svg',
-  'js/util.js', 'js/data.js', 'js/audio.js', 'js/sprites.js', 'js/input.js', 'js/game.js',
+  'js/util.js', 'js/data.js', 'js/audio.js', 'js/sprites.js', 'js/vfx.js', 'js/icons.js', 'js/input.js', 'js/game.js',
   'js/weapons.js', 'js/render.js', 'js/ui.js', 'js/main.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

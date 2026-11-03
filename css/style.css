@@ -156,7 +156,7 @@ body.playing #hud { display: block; }
 .stage-card .ds.meta { min-height: 0; color: #7f86b8; font-size: 11px; }
 .chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .chr { position: relative; padding: 6px 2px 8px; border-radius: 14px; background: var(--panel); border: 1.5px solid var(--line); text-align: center; }
-.chr img { width: 100%; max-width: 60px; aspect-ratio: 1; object-fit: contain; display: block; margin: 0 auto; }
+.chr img { width: 100%; max-width: 70px; aspect-ratio: 1; object-fit: contain; display: block; margin: 0 auto; }
 .chr .n { font: 800 12px system-ui; margin-top: 1px; }
 .chr.sel { border-color: var(--gold); background: linear-gradient(180deg, rgba(70,56,130,.95), rgba(34,34,76,.95)); box-shadow: 0 0 14px rgba(255,207,90,.35); }
 .chr.lock img { filter: brightness(.35) grayscale(.6); }
@@ -250,3 +250,21 @@ body.playing #hud { display: block; }
 
 .stage-desc { margin: 10px 2px 2px; font-size: 13px; color: var(--dim); text-align: center; }
 #banner { white-space: pre-line; }
+
+/* ---------- 自绘图标 ---------- */
+img.ico { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.coin { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.17em; margin-right: 0.18em; background: var(--coin) center / 135% no-repeat; }
+.btn img.ico { width: 1.5em; height: 1.5em; display: inline-block; }
+.card .ic, .opt .ic { padding: 0; background: none; border: 0; overflow: visible; }
+.card .ic img.ico, .opt .ic img.ico { filter: drop-shadow(0 3px 4px rgba(0,0,0,.45)); }
+.card .ic.off img.ico { filter: grayscale(1) brightness(.55); }
+#items span { background: none; border: 0; width: 28px; height: 28px; }
+#items span.evo, #items span.p { border: 0; box-shadow: none; }
+#items span.evo img.ico { filter: drop-shadow(0 0 4px rgba(255,210,74,.9)); }
+.build span { background: none; border: 0; width: 36px; height: 36px; }
+#stats span { display: flex; align-items: center; gap: 4px; }
+#stats img.ico { width: 18px; height: 18px; }
+#stats .coin { width: 18px; height: 18px; margin: 0; vertical-align: 0; }
+.detail .wpn { display: flex; gap: 10px; align-items: flex-start; }
+.detail .wpn img.ico { width: 44px; height: 44px; flex: none; }
+.stage-card .ic { overflow: hidden; }

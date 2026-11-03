@@ -68,7 +68,7 @@ const LOGIC = {
     }
     for (let i = 0; i < n; i++) {
       const a = angs[i];
-      C.addProj({ k: 'bolt', x: P.x, y: P.y, vx: Math.cos(a) * s.speed, vy: Math.sin(a) * s.speed, r: 7 * Math.sqrt(S.area), dmg, pierce: s.pierce, life: 1.8, slot: w.slot, kb: 110, col: '#7fd0ff', upd: boltUpd });
+      C.addProj({ k: 'bolt', x: P.x, y: P.y, vx: Math.cos(a) * s.speed, vy: Math.sin(a) * s.speed, r: 7 * Math.sqrt(S.area) * (w.evo ? 1.25 : 1), dmg, pierce: s.pierce, life: 1.8, slot: w.slot, kb: 110, col: w.evo ? '#ffd86a' : '#6fd0ff', evo: w.evo, upd: boltUpd });
     }
     w.t = cdOf(w); C.sfx('shoot');
   },
@@ -104,8 +104,9 @@ const LOGIC = {
         if (!best) break;
         visited.push(best); pts.push(best.x, best.y); cur = best;
       }
-      for (const e of visited) { C.hurt(e, dmg, 0, 0); e.stun = Math.max(e.stun, 0.15); C.burst(e.x, e.y, '#fff27a', 3, 90, 0.25, 2); }
-      C.fx({ k: 'bolt', pts, life: 0.25, T: 0.25 });
+      const col = w.evo ? '#c890ff' : '#8fd8ff';
+      for (const e of visited) { C.hurt(e, dmg, 0, 0); e.stun = Math.max(e.stun, 0.15); SF.VFX.hit(e.x, e.y - e.r * 0.3, 0, 0, col); }
+      C.fx({ k: 'bolt', pts, life: 0.3, T: 0.3, col, seed: Math.random() * 1000 });
     }
     w.t = cdOf(w); C.sfx('lightning');
   },
@@ -117,7 +118,7 @@ const LOGIC = {
     if (!cand.length) { w.t = 0.2; return; }
     for (let i = 0; i < n; i++) {
       const e = cand[(Math.random() * cand.length) | 0];
-      C.fx({ k: 'meteor', x: e.x + U.rand(-24, 24), y: e.y + U.rand(-24, 24), t: 0.85, T: 0.85, r: s.radius * S.area, dmg: s.dmg * S.might, slot: w.slot });
+      C.fx({ k: 'meteor', x: e.x + U.rand(-24, 24), y: e.y + U.rand(-24, 24), t: 0.85, T: 0.85, r: s.radius * S.area, dmg: s.dmg * S.might, slot: w.slot, evo: w.evo, rot: Math.random() * 6 });
     }
     w.t = cdOf(w);
   },
@@ -126,7 +127,8 @@ const LOGIC = {
     const S = G.stats, s = w.s;
     const fire = () => {
       const max = s.radius * S.area;
-      C.fx({ k: 'nova', x: G.p.x, y: G.p.y, r: 0, max, sp: max / 0.5, id: G.nextId++, dmg: s.dmg * S.might, slowMul: s.slow, slowT: s.slowT, slot: w.slot, col: '#9fe6ff' });
+      C.fx({ k: 'nova', x: G.p.x, y: G.p.y, r: 0, max, sp: max / 0.5, id: G.nextId++, dmg: s.dmg * S.might, slowMul: s.slow, slowT: s.slowT, slot: w.slot, col: w.evo ? '#e0f6ff' : '#8fdcff', evo: w.evo });
+      SF.VFX.frost(G.p.x, G.p.y, 40, w.evo ? '#e0f6ff' : '#8fdcff');
       C.sfx('nova');
     };
     for (let i = w.q.length - 1; i >= 0; i--) { w.q[i] -= dt; if (w.q[i] <= 0) { w.q.splice(i, 1); fire(); } }
@@ -146,7 +148,7 @@ const LOGIC = {
     if (a0 === null) a0 = P.face > 0 ? 0 : Math.PI;
     for (let i = 0; i < n; i++) {
       const a = a0 + (i - (n - 1) / 2) * 0.5;
-      C.addProj({ k: 'axe', x: P.x, y: P.y, vx: 100, vy: 0, dir: a, phase: 0, travel: 0, maxD: s.range * Math.sqrt(S.area), speed: s.speed, rot: Math.random() * TAU, r: s.size * Math.sqrt(S.area), dmg: s.dmg * S.might, pierce: 999, rehit: 0.4, life: 5, slot: w.slot, kb: 90, col: '#c9d4e6', upd: axeUpd });
+      C.addProj({ k: 'axe', x: P.x, y: P.y, vx: 100, vy: 0, dir: a, phase: 0, travel: 0, maxD: s.range * Math.sqrt(S.area), speed: s.speed, rot: Math.random() * TAU, r: s.size * Math.sqrt(S.area), dmg: s.dmg * S.might, pierce: 999, rehit: 0.4, life: 5, slot: w.slot, kb: 90, col: '#c9d4e6', evo: w.evo, upd: axeUpd });
     }
     w.t = cdOf(w); C.sfx('shoot');
   },
@@ -159,7 +161,7 @@ const LOGIC = {
       let x, y;
       if (cand.length) { const e = cand[(Math.random() * cand.length) | 0]; x = e.x + U.rand(-20, 20); y = e.y + U.rand(-20, 20); }
       else { const a = Math.random() * TAU, r = U.rand(40, 150); x = P.x + Math.cos(a) * r; y = P.y + Math.sin(a) * r; }
-      G.zones.push({ x, y, r: s.radius * S.area, t: s.dur, T: s.dur, dmg: s.dmg * S.might, slot: w.slot, dead: false, ph: Math.random() * 6 });
+      G.zones.push({ x, y, r: s.radius * S.area, t: s.dur, T: s.dur, dmg: s.dmg * S.might, slot: w.slot, dead: false, ph: Math.random() * 6, evo: w.evo });
     }
     w.t = cdOf(w);
   },
@@ -183,7 +185,8 @@ const LOGIC = {
         if (px * px + py * py < rr * rr) C.hurt(e, dmg, ca * 140, sa * 140);
       };
       for (const e of G.enemies) test(e);
-      C.fx({ k: 'beam', x0: P.x, y0: P.y, x1, y1, w: width, life: 0.28, T: 0.28 });
+      C.fx({ k: 'beam', x0: P.x, y0: P.y, x1, y1, w: width, life: 0.32, T: 0.32, evo: w.evo });
+      SF.VFX.sparkLine(P.x, P.y, x1, y1, w.evo ? '#ffffff' : '#ffe08a', 10);
     }
     w.t = cdOf(w); C.sfx('beam'); C.shake(1.5);
   }

@@ -76,17 +76,11 @@ function compact(arr) {
   for (let i = 0; i < arr.length; i++) { const o = arr[i]; if (!o.dead) arr[j++] = o; }
   arr.length = j;
 }
-function burst(x, y, col, n, spd, life, size) {
-  for (let i = 0; i < n; i++) {
-    if (G.parts.length >= CAP_PART) return;
-    const a = Math.random() * TAU, s = (spd || 100) * (0.3 + Math.random() * 0.8);
-    G.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: (life || 0.5) * (0.6 + Math.random() * 0.6), max: life || 0.5, sz: (size || 3) * (0.6 + Math.random() * 0.8), col });
-  }
-}
+function burst(x, y, col, n, spd, life, size, k) { SF.VFX.burst(x, y, col, n, spd, life, size, k); }
 Core.burst = burst;
 function popText(x, y, txt, col, big) {
   if (!Save.data.set.dmg || G.texts.length >= CAP_TEXT) return;
-  G.texts.push({ x: x + U.rand(-8, 8), y, txt, col: col || '#fff', life: 0.7, max: 0.7, big: !!big });
+  G.texts.push({ x: x + U.rand(-8, 8), y, txt, col: col || '#fff', life: 0.75, max: 0.75, big: !!big, vx: U.rand(-20, 20) });
 }
 Core.popText = popText;
 function addProj(o) {
@@ -135,7 +129,7 @@ Game.start = function (stageId, charId) {
   const meta = Save.data.meta;
   Object.assign(G, {
     state: 'play', stage: st, ch, chId: charId, p: P, time: 0, frame: 0, kills: 0, gold: 0, level: 1, xp: 0, xpNeed: xpNeed(1),
-    pending: 0, chests: 0, bossKills: 0, enemies: [], bigs: [], proj: [], eproj: [], gems: [], picks: [], parts: [], texts: [], fx: [], zones: [],
+    pending: 0, chests: 0, bossKills: 0, enemies: [], bigs: [], proj: [], eproj: [], gems: [], picks: [], parts: [], texts: [], fx: [], zones: [], decals: [],
     weapons: [], passives: {}, shake: 0, hurtFlash: 0, nextId: 1, evIdx: 0, endT: undefined, victory: false, slowmo: 0,
     waveDefs: st.waves(st.w), acc: [], opts: null, bossRef: null, flash: 0, lastGemSfx: 0, damageTaken: 0
   });
@@ -233,6 +227,7 @@ function hurt(e, dmg, kx, ky, noText) {
   if (Math.random() < 0.05 + G.stats.luck * 0.5) { crit = true; dmg *= 2; }
   e.hp -= dmg; e.flash = 0.09;
   if (!e.boss) { const k = e.big ? 0.25 : 1; e.kx += kx * k; e.ky += ky * k; }
+  if (kx || ky) { const d = Math.hypot(kx, ky) || 1; SF.VFX.hit(e.x - kx / d * e.r * 0.6, e.y - ky / d * e.r * 0.6 - e.r * 0.2, kx, ky, crit ? '#ffd24a' : null); }
   if (!noText) popText(e.x, e.y - e.r, Math.round(dmg), crit ? '#ffd24a' : '#fff', crit);
   Audio().sfx('hit');
   if (e.hp <= 0) kill(e);
@@ -283,6 +278,7 @@ function healPlayer(v) {
   const P = G.p;
   P.hp = Math.min(P.maxHp, P.hp + v);
   popText(P.x, P.y - 24, '+' + Math.round(v), '#7aff9a', true);
+  SF.VFX.heal();
   Audio().sfx('heal');
 }
 function die() {
@@ -297,6 +293,7 @@ function die() {
     }
     for (const b of G.eproj) b.dead = true;
     G.fx.push({ k: 'ring', x: P.x, y: P.y, r: 10, max: 320, life: 0.6, T: 0.6, col: '#ffe08a', follow: true });
+    SF.VFX.levelUp();
     UIx().banner('🪶 凤凰羽复活！', 1800);
     Audio().sfx('levelup');
     return;
@@ -337,7 +334,8 @@ function kill(e) {
   const col = e.def.c1;
   if (e.boss) {
     G.bossKills++;
-    burst(e.x, e.y, col, 40, 260, 0.9, 5); burst(e.x, e.y, '#fff', 20, 200, 0.6, 3);
+    SF.VFX.explosion(e.x, e.y, e.r * 2.2, [e.def.c2, '#ffffff'], { debris: col });
+    burst(e.x, e.y, col, 24, 300, 0.9, 5, 'shard'); SF.VFX.sparkle(e.x, e.y, '#ffffff', 14);
     G.shake = 12; Audio().sfx('explode');
     dropPick('chest', e.x, e.y);
     for (let i = 0; i < 12; i++) dropPick('coin', e.x + U.rand(-50, 50), e.y + U.rand(-50, 50), Math.max(1, Math.round(G.stage.goldMul * U.rand(2, 5))));
@@ -346,7 +344,7 @@ function kill(e) {
     for (const b of G.eproj) b.dead = true;
     if (e.final) {
       G.victory = true; G.endT = 2.4; G.slowmo = 1;
-      for (const o of G.enemies) if (!o.dead && o !== e) { o.dead = true; burst(o.x, o.y, o.def.c1, 4, 120, 0.5, 3); }
+      for (const o of G.enemies) if (!o.dead && o !== e) { o.dead = true; SF.VFX.death(o); }
       UIx().banner('🏆 胜利！', 2400);
       Audio().sfx('win');
     } else {
@@ -355,15 +353,15 @@ function kill(e) {
     }
     return;
   }
-  burst(e.x, e.y, col, e.elite ? 14 : 5, 110, 0.45, 3);
+  SF.VFX.death(e);
+  if (e.elite) SF.VFX.sparkle(e.x, e.y, '#ffd24a', 12);
   Audio().sfx('kill');
   if (e.ai === 'bomber') explodeBomber(e);
   dropLoot(e);
 }
 function explodeBomber(e) {
   const P = G.p, R = 64;
-  G.fx.push({ k: 'ring', x: e.x, y: e.y, r: 6, max: R, life: 0.3, T: 0.3, col: '#ff8a3a' });
-  burst(e.x, e.y, '#ffb04a', 14, 200, 0.4, 3);
+  SF.VFX.explosion(e.x, e.y, R * 0.8, [e.def.c1, '#ffd24a']);
   Audio().sfx('explode');
   if (Math.hypot(P.x - e.x, P.y - e.y) < R + P.r) hurtPlayer(e.dmg);
 }
@@ -576,7 +574,7 @@ function updatePickups(dt) {
     if (p.k === 'coin' && d < magR) { p.x += dx / d * 520 * dt; p.y += dy / d * 520 * dt; }
     if (d < P.r + 14) {
       p.dead = true;
-      if (p.k === 'coin') { const v = Math.max(1, Math.round(p.v * (1 + G.stats.greed))); G.gold += v; Audio().sfx('coin'); popText(P.x, P.y - 26, '+' + v, '#ffd24a'); }
+      if (p.k === 'coin') { const v = Math.max(1, Math.round(p.v * (1 + G.stats.greed))); G.gold += v; Audio().sfx('coin'); SF.VFX.sparkle(p.x, p.y, '#ffd24a', 3); popText(P.x, P.y - 26, '+' + v, '#ffd24a'); }
       else if (p.k === 'heart') healPlayer(Math.round(G.p.maxHp * 0.3));
       else if (p.k === 'magnet') { for (const g of gems) g.mag = true; Audio().sfx('magnet'); UIx().toast('🧲 吸附全屏经验'); }
       else if (p.k === 'bomb') {
@@ -608,8 +606,7 @@ function updateFx(dt) {
         };
         for (let k = 0; k < list.length; k++) test(list[k]);
         for (let k = 0; k < G.bigs.length; k++) test(G.bigs[k]);
-        burst(f.x, f.y, '#ff8a3a', 16, 220, 0.5, 4); burst(f.x, f.y, '#ffd24a', 10, 160, 0.4, 3);
-        G.fx.push({ k: 'ring', x: f.x, y: f.y, r: 6, max: f.r * 1.1, life: 0.28, T: 0.28, col: '#ffb04a' });
+        SF.VFX.explosion(f.x, f.y, f.r, f.evo ? ['#ff3a6a', '#ffb0f0'] : ['#ff7a2a', '#ffd24a']);
         G.shake = Math.max(G.shake, 4); Audio().sfx('explode');
       }
     } else if (f.k === 'nova') {
@@ -633,13 +630,12 @@ function updateFx(dt) {
       if (f.t <= 0) {
         f.dead = true;
         if (Math.hypot(P.x - f.x, P.y - f.y) < f.r + P.r * 0.5) hurtPlayer(f.dmg);
-        burst(f.x, f.y, f.col, 20, 220, 0.5, 4);
-        G.fx.push({ k: 'ring', x: f.x, y: f.y, r: 10, max: f.r, life: 0.3, T: 0.3, col: f.col });
+        SF.VFX.explosion(f.x, f.y, f.r * 0.75, [f.col, '#ffffff'], { smoke: '#4a4040' });
         G.shake = Math.max(G.shake, 7); Audio().sfx('slam');
         const n = 10;
         for (let k = 0; k < n; k++) shootAt(f.x, f.y, k / n * TAU, 130, f.dmg * 0.35, f.col, 6);
       }
-    } else if (f.k === 'ring' || f.k === 'bolt' || f.k === 'beam') {
+    } else if (f.k === 'ring' || f.k === 'bolt' || f.k === 'beam' || f.k === 'pillar') {
       f.life -= dt;
       if (f.follow) { f.x = P.x; f.y = P.y; }
       if (f.life <= 0) f.dead = true;
@@ -661,22 +657,15 @@ function updateFx(dt) {
     };
     for (let k = 0; k < list.length; k++) test(list[k]);
     for (let k = 0; k < G.bigs.length; k++) test(G.bigs[k]);
-    if (Math.random() < dt * 8) G.parts.push({ x: z.x + U.rand(-z.r, z.r) * 0.8, y: z.y + U.rand(-z.r, z.r) * 0.6, vx: 0, vy: -20, life: 0.7, max: 0.7, sz: 3, col: '#8be05a' });
+    if (Math.random() < dt * 6 && SF.VFX.room(0.6)) { const a = Math.random() * TAU, rr = Math.random() * z.r * 0.8; SF.VFX.p('smoke', z.x + Math.cos(a) * rr, z.y + Math.sin(a) * rr * 0.7, 0, -24, 0.9, z.r * 0.35, z.evo ? '#b06aff' : '#7ad84a', { grow: z.r * 0.4, drag: 1, a: 0.35 }); }
   }
 }
 function updateParts(dt) {
-  const ps = G.parts;
-  for (let i = 0; i < ps.length; i++) {
-    const p = ps[i];
-    p.life -= dt;
-    if (p.life <= 0) { p.dead = true; continue; }
-    p.x += p.vx * dt; p.y += p.vy * dt;
-    const f = Math.max(0, 1 - dt * 3); p.vx *= f; p.vy *= f;
-  }
+  SF.VFX.update(dt);
   const ts = G.texts;
   for (let i = 0; i < ts.length; i++) {
     const t = ts[i];
-    t.life -= dt; t.y -= 38 * dt;
+    t.life -= dt; t.y -= 42 * dt; t.x += t.vx * dt;
     if (t.life <= 0) t.dead = true;
   }
 }
@@ -732,6 +721,7 @@ Game.pick = function (i) {
   G.pending = Math.max(0, G.pending - 1);
   G.state = 'play'; G.opts = null;
   Audio().sfx('pick');
+  SF.VFX.levelUp();
   UIx().hideModal();
   UIx().refreshItems();
 };
@@ -801,7 +791,7 @@ Game.update = function (dt) {
   updateParts(dt);
   compact(G.enemies); compact(G.bigs); compact(G.proj); compact(G.eproj);
   compact(G.gems); compact(G.picks); compact(G.fx); compact(G.zones);
-  compact(G.parts); compact(G.texts);
+  compact(G.parts); compact(G.texts); compact(G.decals);
   // Boss 血条引用
   let b = null;
   for (let i = 0; i < G.bigs.length; i++) if (G.bigs[i].boss && !G.bigs[i].dead) { b = G.bigs[i]; break; }
