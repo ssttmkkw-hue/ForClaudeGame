@@ -110,6 +110,7 @@ function recalc() {
   for (const id in G.passives) { const p = SF.PASSIVES[id]; S[p.key] += p.per * G.passives[id]; }
   const st = G.stats || (G.stats = {});
   st.might = 1 + S.might; st.cd = Math.max(0.35, 1 + S.cd); st.area = 1 + S.area; st.move = 1 + S.move;
+  st.mightBase = st.might; st.moveBase = st.move;
   const oldMax = G.p.maxHp || 0;
   G.p.maxHp = Math.round((100 + S.hp) * (1 + S.hpMul));
   if (oldMax) G.p.hp = Math.min(G.p.maxHp, G.p.hp + Math.max(0, G.p.maxHp - oldMax)); else G.p.hp = G.p.maxHp;
@@ -126,7 +127,9 @@ function addWeapon(id) {
 /* ------------------------- 开局 ------------------------- */
 Game.start = function (stageId, charId) {
   const st = SF.STAGES[stageId], ch = SF.CHARS[charId];
-  const P = { x: 0, y: 0, r: 12, hp: 100, maxHp: 0, face: 1, inv: 0, t: 0, moving: false, vx: 0, vy: 0, dead: false };
+  gHead.fill(-1);
+  const mp = SF.Map.build(st);
+  const P = { x: mp.spawn.x, y: mp.spawn.y, r: 12, hp: 100, maxHp: 0, face: 1, inv: 0, t: 0, moving: false, vx: 0, vy: 0, dead: false };
   const meta = Save.data.meta;
   Object.assign(G, {
     state: 'play', stage: st, ch, chId: charId, p: P, time: 0, frame: 0, kills: 0, gold: 0, level: 1, xp: 0, xpNeed: xpNeed(1),
@@ -148,6 +151,7 @@ Game.start = function (stageId, charId) {
 };
 
 /* ------------------------- 敌人 ------------------------- */
+const FLY_SHAPES = { bat: 1, ghost: 1, lich: 1, demon: 1 };
 function spawnEnemy(id, x, y, o) {
   const def = SF.ENEMIES[id], st = G.stage, t = G.time / 60;
   const late = Math.max(0, t - 4);
@@ -161,20 +165,32 @@ function spawnEnemy(id, x, y, o) {
     elite: false, spr: SF.Sprites.enemy(def), sc: 1, nv: 0, pi: 0, bst: '', bt: 0, spiral: 0, sp: 0, sa: 0, dx: 0, dy: 0, big: false
   };
   if (o && o.elite) { e.elite = true; e.hp = e.maxHp = e.maxHp * (G.frenzy ? 8 : 6); e.r *= 1.3; e.sc = 1.3; e.dmg *= 1.3; e.xp *= 6; }
+  e.fly = !!(def.fly || FLY_SHAPES[def.shape]);
   if (e.r >= 26) { e.big = true; G.bigs.push(e); }
   if (e.boss) { e.hitFlashNone = true; e.cd = 2.5; }
   G.enemies.push(e);
   return e;
 }
 Core.spawnEnemy = spawnEnemy;
+Core.dropPick = (k, x, y, v) => dropPick(k, x, y, v);
+Core.hurtPlayer = d => hurtPlayer(d);
 // 沿屏幕外矩形边缘取点（竖屏上也能较快接敌）
-function edgePoint(a, extra) {
+// 屏幕外矩形边缘上的点（以相机为中心），必须落在地图可走区域内
+function edgeRaw(a, extra) {
+  const cam = SF.Map.camera();
   const hw = SF.view.hw + 40 + (extra || 0), hh = SF.view.hh + 40 + (extra || 0);
   const c = Math.cos(a), s = Math.sin(a);
   const r = Math.min(hw / Math.max(1e-3, Math.abs(c)), hh / Math.max(1e-3, Math.abs(s)));
-  return [G.p.x + c * r, G.p.y + s * r];
+  return [cam[0] + c * r, cam[1] + s * r];
 }
-function ringPos(extra) { return edgePoint(Math.random() * TAU, extra); }
+function ringPos(extra) {
+  for (let i = 0; i < 14; i++) { const p = edgeRaw(Math.random() * TAU, extra); if (SF.Map.valid(p[0], p[1], 16)) return p; }
+  return SF.Map.randomValid(G.p.x, G.p.y, Math.hypot(SF.view.hw, SF.view.hh) + 40);
+}
+function edgePoint(a, extra) {
+  const p = edgeRaw(a, extra);
+  return SF.Map.valid(p[0], p[1], 16) ? p : ringPos(extra);
+}
 Core.ringPos = ringPos;
 
 function runEvent(ev) {
@@ -320,6 +336,7 @@ function dropGem(x, y, v) {
   G.gems.push({ x: x + U.rand(-5, 5), y: y + U.rand(-5, 5), v, tier: v >= 20 ? 2 : v >= 5 ? 1 : 0, mag: false, sp: 0, dead: false, t: Math.random() * 6 });
 }
 function dropPick(k, x, y, v) {
+  if (!SF.Map.valid(x, y, 12)) { const p = SF.Map.nearestValid(x, y); x = p[0]; y = p[1]; }
   G.picks.push({ k, x, y, v: v || 0, dead: false, t: 0, life: k === 'chest' ? 9999 : 40 });
 }
 function dropLoot(e) {
@@ -451,14 +468,17 @@ function updateEnemies(dt) {
     const sp = e.spd * (e.slowT > 0 ? e.slow : 1);
     let vx = 0, vy = 0;
     const ai = e.ai;
+    // 地面单位绕开地形：沿流场方向前进（近身时直接追击）
+    let ux = dx / d, uy = dy / d;
+    if (!e.fly && !e.boss && d > 70) { const f = SF.Map.flowDir(e.x, e.y); if (f) { ux = f[0]; uy = f[1]; } }
     if (e.stun > 0) { /* 眩晕 */ }
     else if (ai === 'boss') { const v = bossAI(e, dt, dx, dy, d); vx = v[0]; vy = v[1]; }
     else if (ai === 'sine') {
-      const a = Math.atan2(dy, dx) + Math.sin(e.t * 4 + e.id) * 0.9;
+      const a = Math.atan2(uy, ux) + Math.sin(e.t * 4 + e.id) * 0.9;
       vx = Math.cos(a) * sp; vy = Math.sin(a) * sp;
     } else if (ai === 'ranged' || ai === 'mage') {
       const keep = ai === 'ranged' ? 230 : 260;
-      if (d > keep + 30) { vx = dx / d * sp; vy = dy / d * sp; }
+      if (d > keep + 30) { vx = ux * sp; vy = uy * sp; }
       else if (d < keep - 60) { vx = -dx / d * sp * 0.9; vy = -dy / d * sp * 0.9; }
       else { vx = -dy / d * sp * 0.35; vy = dx / d * sp * 0.35; }
       e.cd -= dt;
@@ -469,20 +489,21 @@ function updateEnemies(dt) {
       }
     } else if (ai === 'charger') {
       if (e.st === 0) {
-        vx = dx / d * sp; vy = dy / d * sp; e.cd -= dt;
+        vx = ux * sp; vy = uy * sp; e.cd -= dt;
         if (e.cd <= 0 && d < 380) { e.st = 1; e.bt = 0.6; }
       } else if (e.st === 1) {
         e.bt -= dt; e.flash = 0.04;
-        if (e.bt <= 0) { e.st = 2; e.bt = 0.65; e.dx = dx / d; e.dy = dy / d; }
+        if (e.bt <= 0) { e.st = 2; e.bt = 0.65; e.dx = ux; e.dy = uy; }
       } else {
         e.bt -= dt; vx = e.dx * 330; vy = e.dy * 330;
         if (e.bt <= 0) { e.st = 0; e.cd = U.rand(2.2, 3.6); }
       }
-    } else { vx = dx / d * sp; vy = dy / d * sp; }
+    } else { vx = ux * sp; vy = uy * sp; }
 
     // 击退衰减
     e.x += (vx + e.kx) * dt; e.y += (vy + e.ky) * dt;
     const decay = Math.min(1, dt * 7); e.kx -= e.kx * decay; e.ky -= e.ky * decay;
+    SF.Map.collide(e, e.r * 0.8, e.fly || e.boss);
 
     // 软分离（错帧处理）
     if (!e.boss && ((frame + e.id) % 3) === 0) {
@@ -774,6 +795,9 @@ function updatePlayer(dt) {
     P.moving = (v[0] !== 0 || v[1] !== 0);
     if (Math.abs(v[0]) > 0.1) P.face = v[0] > 0 ? 1 : -1;
   }
+  const tank = G.mount && G.mount.kind === 'tank';
+  if (!G.mount || tank) SF.Map.collide(P, tank ? 24 : P.r, false);
+  if (tank) { G.mount.x = P.x; G.mount.y = P.y; }
   P.t += dt;
   if (P.inv > 0) P.inv -= dt;
   if (G.hurtFlash > 0) G.hurtFlash -= dt * 2.5;
@@ -794,6 +818,7 @@ Game.update = function (dt) {
   updatePlayer(dt);
   director(dt);
   buildGrid();
+  SF.Map.update(dt);
   for (let i = 0; i < G.weapons.length; i++) SF.WL.update(G.weapons[i], dt);
   SF.Feat.update(dt);
   updateProj(dt);

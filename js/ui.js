@@ -22,6 +22,7 @@ UI.init = function () {
   document.addEventListener('visibilitychange', () => { if (document.hidden) { SF.Game.pause(); SF.Audio.suspend(); } else SF.Audio.resume(); });
   focusChar = Save.data.sel.char;
   // 主动技能 / 操控按钮（pointerdown 立即响应，不影响摇杆）
+  hud.mini = $('#mini'); hud.zone = $('#zonetag');
   hud.chal = $('#chal'); hud.chalT = hud.chal.querySelector('.ct'); hud.chalP = hud.chal.querySelector('.pb i');
   hud.chalTl = hud.chal.querySelector('.tl'); hud.chalRw = hud.chal.querySelector('.rw');
   const bind = (id, fn, icon) => {
@@ -377,6 +378,11 @@ UI.updateHud = function () {
     hud.bossi.style.width = Math.max(0, b.hp / b.maxHp * 100).toFixed(1) + '%';
   } else if (c.b) { c.b = 0; hud.bossbar.style.display = 'none'; }
   updateActs();
+  // 小地图与区域提示（降频刷新）
+  const now = performance.now();
+  if (!c.mt || now - c.mt > 200) { c.mt = now; SF.Render.drawMini(hud.mini); }
+  const zt = G.zoneTag || '';
+  if (c.zt !== zt) { c.zt = zt; hud.zone.textContent = zt; hud.zone.style.display = zt ? 'block' : 'none'; }
 };
 let c0 = {};
 function setCd(btn, p, txt, key) {

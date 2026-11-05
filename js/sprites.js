@@ -1005,6 +1005,11 @@ const DECO = {
       part(g, () => { g.beginPath(); g.ellipse(0, -6, 10, 8, 0, 0, TAU); }, '#efe6d0', 0, -6, 10, { lw: 1.6 });
       ell(g, -3, -7, 2.5, 3, '#3a2a20'); ell(g, 4, -7, 2.5, 3, '#3a2a20');
       limb(g, [-18, 2, -8, 0], 3, '#efe6d0', 1); limb(g, [10, 1, 20, 3], 3, '#efe6d0', 1);
+    },
+    (g) => { // 砂岩巨石
+      g.drawImage(Sp.shadow(), -26, -2, 52, 15);
+      part(g, () => polyPath(g, [-22, 4, -18, -14, -6, -24, 10, -22, 22, -6, 18, 6]), '#c89a5a', 0, -8, 22, { lw: 2 });
+      line(g, [-14, -8, 12, -10], 1.6, 'rgba(110,70,30,.45)'); line(g, [-10, -1, 14, -2], 1.6, 'rgba(110,70,30,.35)');
     }
   ],
   frost: [
@@ -1171,6 +1176,66 @@ Sp.MWBOX = MWBOX;
 Sp.mapw = function (name) {
   const [w, h, ox, oy] = MWBOX[name];
   return fx('mw' + name, w * S, h * S, (g) => { g.scale(S, S); g.translate(ox, oy); MW[name](g); });
+};
+
+/* ======================= 地图物件 ======================= */
+const MO = {
+  palm(g) { // 原点为树干底部
+    g.drawImage(Sp.shadow(), -26, -6, 52, 16);
+    g.beginPath(); g.moveTo(-3, 2); g.quadraticCurveTo(-8, -26, 4, -52); g.lineWidth = 10; g.strokeStyle = OUTC; g.lineCap = 'round'; g.stroke();
+    g.lineWidth = 7; g.strokeStyle = '#a8743a'; g.stroke();
+    for (let i = 0; i < 5; i++) line(g, [-6 + i * 0.6, -6 - i * 9, 1 + i * 0.6, -8 - i * 9], 1.4, 'rgba(60,30,10,.5)');
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i - 2.5) * 0.62;
+      g.save(); g.translate(4, -52); g.rotate(a);
+      part(g, () => { g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(18, -9, 36, 5); g.quadraticCurveTo(18, 2, 0, 0); g.closePath(); }, i % 2 ? '#3fae4a' : '#4fc05a', 18, 0, 18, { lw: 1.8 });
+      g.restore();
+    }
+    circ(g, 1, -50, 3.5, '#6a4a1a'); circ(g, 7, -49, 3.5, '#6a4a1a');
+  },
+  spring(g) { // 128，中心
+    g.translate(64, 64);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; part(g, () => { g.beginPath(); g.ellipse(Math.cos(a) * 56, Math.sin(a) * 50, 11, 8, a, 0, TAU); }, '#9aa0a8', Math.cos(a) * 56, Math.sin(a) * 50, 11, { lw: 1.5 }); }
+    const gr = g.createRadialGradient(-10, -10, 4, 0, 0, 52); gr.addColorStop(0, '#d0fbff'); gr.addColorStop(0.5, '#5ad0f0'); gr.addColorStop(1, '#2a7ac8');
+    g.beginPath(); g.ellipse(0, 0, 50, 44, 0, 0, TAU); g.fillStyle = gr; g.fill(); g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.7)'; g.stroke();
+    ell(g, -16, -14, 14, 6, 'rgba(255,255,255,.55)', -0.4);
+  },
+  altar(g) { // 96，中心偏下
+    g.translate(48, 60);
+    g.drawImage(Sp.shadow(), -36, 8, 72, 22);
+    part(g, () => { g.beginPath(); g.roundRect(-34, -6, 68, 22, 5); }, '#8a8478', 0, 5, 34, { lw: 2.5 });
+    part(g, () => { g.beginPath(); g.roundRect(-24, -26, 48, 22, 4); }, '#a8a294', 0, -15, 24, { lw: 2.5 });
+    for (const x of [-26, 26]) part(g, () => { g.beginPath(); g.rect(x - 4, -40, 8, 34); }, '#c8b07a', x, -23, 6, { lw: 1.8 });
+    line(g, [-20, -10, 20, -10], 2, '#ffd24a');
+  },
+  pad(g) { // 80，中心
+    g.translate(40, 40);
+    part(g, () => { g.beginPath(); g.ellipse(0, 0, 34, 28, 0, 0, TAU); }, '#5a5e6a', 0, 0, 34, { lw: 2.5 });
+    g.save(); g.beginPath(); g.ellipse(0, 0, 30, 24, 0, 0, TAU); g.clip();
+    for (let i = -6; i <= 6; i++) { g.save(); g.translate(i * 10, 0); g.rotate(0.6); g.fillStyle = i % 2 ? '#ffd24a' : '#2a2a34'; g.fillRect(-3, -40, 6, 80); g.restore(); }
+    g.restore();
+    part(g, () => { g.beginPath(); g.ellipse(0, 0, 20, 16, 0, 0, TAU); }, '#7a7e8a', 0, 0, 20, { lw: 2 });
+    for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.78; circ(g, Math.cos(a) * 14, Math.sin(a) * 11, 2, '#c8ccd8'); }
+  },
+  crater(g) { // 128，中心
+    g.translate(64, 64);
+    const gr = g.createRadialGradient(0, 0, 8, 0, 0, 60); gr.addColorStop(0, '#ff9a3a'); gr.addColorStop(0.35, '#7a2a14'); gr.addColorStop(0.7, '#2a1a1c'); gr.addColorStop(1, 'rgba(42,26,28,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 60, 0, TAU); g.fill();
+    for (let i = 0; i < 9; i++) { const a = i / 9 * TAU; part(g, () => polyPath(g, [Math.cos(a) * 30, Math.sin(a) * 26, Math.cos(a + 0.25) * 46, Math.sin(a + 0.25) * 40, Math.cos(a - 0.1) * 48, Math.sin(a - 0.1) * 42]), '#3a2a30', Math.cos(a) * 40, Math.sin(a) * 36, 10, { lw: 1.5 }); }
+    circ(g, 0, 0, 12, '#ffd06a');
+  },
+  portal(g) { // 128，中心
+    g.translate(64, 64);
+    for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; part(g, () => { g.beginPath(); g.rect(Math.cos(a) * 52 - 6, Math.sin(a) * 44 - 6, 12, 12); }, '#6a6080', Math.cos(a) * 52, Math.sin(a) * 44, 8, { lw: 1.5 }); }
+    const gr = g.createRadialGradient(0, 0, 4, 0, 0, 46); gr.addColorStop(0, '#1a0830'); gr.addColorStop(0.6, '#6a2ac8'); gr.addColorStop(1, 'rgba(200,140,255,.15)');
+    g.beginPath(); g.ellipse(0, 0, 44, 38, 0, 0, TAU); g.fillStyle = gr; g.fill();
+  }
+};
+const MOBOX = { palm: [80, 90, 40, 76], spring: [128, 128, 64, 64], altar: [96, 96, 48, 60], pad: [80, 80, 40, 40], crater: [128, 128, 64, 64], portal: [128, 128, 64, 64] };
+Sp.MOBOX = MOBOX;
+Sp.mobj = function (name) {
+  const [w, h, ox, oy] = MOBOX[name];
+  return fx('mo' + name, w * S, h * S, (g) => { g.scale(S, S); if (name === 'palm') g.translate(ox, oy); MO[name](g); });
 };
 
 /* 供图标等模块复用的绘图工具 */

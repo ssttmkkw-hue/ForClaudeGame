@@ -37,6 +37,43 @@ R.perfSample = function (dt) {
   else perf.good = 0;
 };
 R.renderScale = () => RS;
+// 小地图
+R.drawMini = function (c) {
+  const mp = SF.Map.get();
+  if (!mp || !G.p) return;
+  const g = c.getContext('2d'), W2 = c.width, sc = W2 / (mp.maxX - mp.minX);
+  const X = x => (x - mp.minX) * sc, Y = y => (y - mp.minY) * sc;
+  if (!mp.mini) {
+    const b = document.createElement('canvas'); b.width = W2; b.height = W2;
+    const q = b.getContext('2d');
+    q.fillStyle = G.stage.ground[0]; q.fillRect(0, 0, W2, W2);
+    q.lineCap = 'round';
+    for (const s of mp.liquids) {
+      const col = s.k === 'lava' ? '#ff6a1a' : s.k === 'chasm' ? '#0c1830' : '#3a8ad0';
+      if (s.t === 's') { q.strokeStyle = col; q.lineWidth = Math.max(2, s.r * 2 * sc); q.beginPath(); q.moveTo(X(s.x1), Y(s.y1)); q.lineTo(X(s.x2), Y(s.y2)); q.stroke(); }
+      else { q.fillStyle = col; q.beginPath(); q.arc(X(s.x), Y(s.y), Math.max(2, s.r * sc), 0, TAU); q.fill(); }
+    }
+    q.fillStyle = 'rgba(20,16,24,.75)';
+    for (const s of mp.solids) { if (s.t === 'c') { q.beginPath(); q.arc(X(s.x), Y(s.y), Math.max(1.2, s.r * sc), 0, TAU); q.fill(); } else q.fillRect(X(s.x), Y(s.y), Math.max(1.5, s.w * sc), Math.max(1.5, s.h * sc)); }
+    const ZC = { spring: '#5ae0ff', might: '#ff4a5a', haste: '#3affd0', shrine: '#ffd24a', swamp: '#6a7a3a', sand: '#d8b060', frost: '#e8f8ff', pool: '#ff8a3a', vent: '#ff4a1a' };
+    for (const z of mp.zones) { q.fillStyle = ZC[z.k] || '#fff'; q.globalAlpha = 0.85; q.beginPath(); q.arc(X(z.x), Y(z.y), Math.max(3, z.r * sc), 0, TAU); q.fill(); }
+    q.globalAlpha = 1; q.fillStyle = '#c890ff';
+    for (const p of mp.portals) { q.beginPath(); q.arc(X(p.x), Y(p.y), 4, 0, TAU); q.fill(); }
+    q.strokeStyle = 'rgba(255,255,255,.5)'; q.lineWidth = 2; q.strokeRect(1, 1, W2 - 2, W2 - 2);
+    mp.mini = b;
+  }
+  g.clearRect(0, 0, W2, W2);
+  g.drawImage(mp.mini, 0, 0);
+  const cam = SF.Map.camera();
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2;
+  g.strokeRect(X(cam[0] - SF.view.hw), Y(cam[1] - SF.view.hh), SF.view.hw * 2 * sc, SF.view.hh * 2 * sc);
+  g.fillStyle = '#ffd24a';
+  for (const m of G.mapw || []) g.fillRect(X(m.x) - 3.5, Y(m.y) - 3.5, 7, 7);
+  for (const e of G.bigs) { if (e.dead) continue; g.fillStyle = e.boss ? '#ff2a3a' : '#ff8a5a'; g.beginPath(); g.arc(X(e.x), Y(e.y), e.boss ? 6 : 3.5, 0, TAU); g.fill(); }
+  for (const e of G.enemies) if (e.elite && !e.dead && !e.big) { g.fillStyle = '#ffb04a'; g.beginPath(); g.arc(X(e.x), Y(e.y), 3.5, 0, TAU); g.fill(); }
+  g.fillStyle = '#ffffff'; g.strokeStyle = '#1a1030'; g.lineWidth = 2;
+  g.beginPath(); g.arc(X(G.p.x), Y(G.p.y), 5, 0, TAU); g.fill(); g.stroke();
+};
 R.reset = function () {
   ambStage = null;
   Sp.clear();
@@ -116,7 +153,8 @@ R.draw = function () {
   const rdt = lastNow ? Math.min(0.05, now - lastNow) : 0.016; lastNow = now;
   const P = G.p, k = dpr * scale, hw = SF.view.hw, hh = SF.view.hh;
   const shx = G.shake > 0 ? U.rand(-G.shake, G.shake) : 0, shy = G.shake > 0 ? U.rand(-G.shake, G.shake) : 0;
-  const cx = P.x + shx, cy = P.y + shy;
+  const cam = SF.Map.camera(), mp = SF.Map.get();
+  const cx = cam[0] + shx, cy = cam[1] + shy;
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   K = k; TX = cv.width / 2 - cx * k; TY = cv.height / 2 - cy * k;
   ctx.setTransform(K, 0, 0, K, TX, TY);
@@ -126,11 +164,140 @@ R.draw = function () {
   FXA = FXA_STAGE[kind] || 0.8;
 
   if (PROF) prof('地面');
-  // 地面
+  // 地图外背景
+  const OUTC = { meadow: '#173018', desert: '#2e1c10', frost: '#0e2440', lava: '#a8300c' }[kind] || '#101018';
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = OUTC; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (kind === 'lava') { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.25 + 0.1 * Math.sin(now * 1.5); ctx.fillStyle = '#ff8a2a'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+  ctx.setTransform(K, 0, 0, K, TX, TY);
+  if (kind === 'frost' || kind === 'lava') {
+    ctx.strokeStyle = kind === 'frost' ? 'rgba(160,210,255,.25)' : 'rgba(255,220,120,.35)'; ctx.lineWidth = 3;
+    for (let i = 0; i < 9; i++) { const yy = Math.floor(y0 / 80) * 80 + i * 110 + ((now * 20) % 80); ctx.beginPath(); for (let xx = x0 - 40; xx < x1 + 40; xx += 40) ctx.lineTo(xx, yy + Math.sin(xx * 0.02 + now + i) * 8); ctx.stroke(); }
+  }
+  // 地面（只在地图范围内）
+  ctx.save(); ctx.beginPath(); ctx.rect(mp.minX, mp.minY, mp.maxX - mp.minX, mp.maxY - mp.minY); ctx.clip();
   {
     const tile = Sp.ground(G.stage), TS = Sp.TILE;
     const gx0 = Math.floor(x0 / TS), gx1 = Math.floor(x1 / TS), gy0 = Math.floor(y0 / TS), gy1 = Math.floor(y1 / TS);
     for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) ctx.drawImage(tile, gx * TS - 0.5, gy * TS - 0.5, TS + 1, TS + 1);
+  }
+  // 散布小装饰
+  {
+    const SC = 110, a0x = Math.floor((x0 - 30) / SC), a1x = Math.floor((x1 + 30) / SC), a0y = Math.floor((y0 - 30) / SC), a1y = Math.floor((y1 + 30) / SC);
+    for (let gy = a0y; gy <= a1y; gy++) for (let gx = a0x; gx <= a1x; gx++) {
+      const h = U.hash(gx, gy, 21);
+      if (h > 0.42) continue;
+      const sx = gx * SC + U.hash(gx, gy, 22) * SC, sy = gy * SC + U.hash(gx, gy, 23) * SC;
+      ctx.drawImage(Sp.small(kind, (U.hash(gx, gy, 24) * 3) | 0), sx - 22, sy - 24, 44, 44);
+    }
+  }
+  // 边缘内阴影
+  {
+    const E = 70, ec = kind === 'lava' ? 'rgba(255,90,20,' : 'rgba(0,0,0,';
+    const band = (gx0, gy0, gx1, gy1, x, y, w, h) => { const gr = ctx.createLinearGradient(gx0, gy0, gx1, gy1); gr.addColorStop(0, ec + '.55)'); gr.addColorStop(1, ec + '0)'); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h); };
+    if (y0 < mp.minY + E) band(0, mp.minY, 0, mp.minY + E, mp.minX, mp.minY, mp.maxX - mp.minX, E);
+    if (y1 > mp.maxY - E) band(0, mp.maxY, 0, mp.maxY - E, mp.minX, mp.maxY - E, mp.maxX - mp.minX, E);
+    if (x0 < mp.minX + E) band(mp.minX, 0, mp.minX + E, 0, mp.minX, mp.minY, E, mp.maxY - mp.minY);
+    if (x1 > mp.maxX - E) band(mp.maxX, 0, mp.maxX - E, 0, mp.maxX - E, mp.minY, E, mp.maxY - mp.minY);
+  }
+  ctx.restore();
+  ctx.setTransform(K, 0, 0, K, TX, TY);
+
+  if (PROF) prof('地图边界');
+  // 边界外的植被/岩石带
+  {
+    const FR = { meadow: [['meadow', 0], ['meadow', 1]], desert: [['desert', 3], ['desert', 0]], frost: [['frost', 0], ['frost', 1]], lava: [['lava', 0], ['lava', 2]] }[kind];
+    const step = 64;
+    const edgeProp = (x, y, h) => { const v = FR[(h * 2) | 0]; const sc = 1.05 + h * 0.5; ctx.drawImage(Sp.deco(v[0], v[1]), x - 50 * sc, y - 80 * sc, 100 * sc, 100 * sc); };
+    for (let x = Math.floor(x0 / step) * step - step; x < x1 + step; x += step) {
+      if (y0 < mp.minY + 40) for (let row = 0; row < 3; row++) { const h = U.hash(x, row, 61); edgeProp(x + h * 30, mp.minY - 18 - row * 48, U.hash(x, row, 62)); }
+      if (y1 > mp.maxY - 40) for (let row = 0; row < 3; row++) { const h = U.hash(x, row, 63); edgeProp(x + h * 30, mp.maxY + 46 + row * 48, U.hash(x, row, 64)); }
+    }
+    for (let y = Math.floor(y0 / step) * step - step; y < y1 + step * 2; y += step) {
+      if (x0 < mp.minX + 40) for (let col = 0; col < 3; col++) { const h = U.hash(col, y, 65); edgeProp(mp.minX - 22 - col * 50, y + h * 30, U.hash(col, y, 66)); }
+      if (x1 > mp.maxX - 40) for (let col = 0; col < 3; col++) { const h = U.hash(col, y, 67); edgeProp(mp.maxX + 22 + col * 50, y + h * 30, U.hash(col, y, 68)); }
+    }
+  }
+
+  if (PROF) prof('液体');
+  // 河流 / 岩浆 / 裂谷
+  const near = SF.Map.near(x0 - 80, y0 - 80, x1 + 80, y1 + 120);
+  const liq = [], sol = [];
+  for (let i = 0; i < near.length; i++) (near[i].liquid ? liq : sol).push(near[i]);
+  {
+    const LQ = { water: ['#7a6440', '#2f7fc0', '#5ab8ea', 'rgba(255,255,255,.4)'], lava: ['#2a1210', '#e8441a', '#ffb43a', 'rgba(255,240,170,.35)'], chasm: ['#eef8ff', '#0c1830', '#1c2c50', null] };
+    const shapeStroke = (s, extra, col) => {
+      if (s.t === 's') { ctx.strokeStyle = col; ctx.lineWidth = (s.r + extra) * 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke(); }
+      else if (s.t === 'c') { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(1, s.r + extra), 0, TAU); ctx.fill(); }
+    };
+    for (const s of liq) shapeStroke(s, 12, LQ[s.k][0]);
+    for (const s of liq) shapeStroke(s, 0, LQ[s.k][1]);
+    for (const s of liq) shapeStroke(s, -s.r * 0.45, LQ[s.k][2]);
+    ctx.setLineDash([5, 28, 12, 46]); ctx.lineDashOffset = -now * 40; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (const s of liq) { const c = LQ[s.k][3]; if (!c || s.t !== 's') continue; ctx.strokeStyle = c; for (const o of [-0.4, 0.35]) { const L = Math.hypot(s.x2 - s.x1, s.y2 - s.y1) || 1, nx = -(s.y2 - s.y1) / L * s.r * o, ny = (s.x2 - s.x1) / L * s.r * o; ctx.beginPath(); ctx.moveTo(s.x1 + nx, s.y1 + ny); ctx.lineTo(s.x2 + nx, s.y2 + ny); ctx.stroke(); } }
+    ctx.setLineDash([]);
+    if (liq.some(s => s.k === 'lava')) { ctx.globalCompositeOperation = 'lighter'; for (const s of liq) if (s.k === 'lava') { const mx = s.t === 's' ? (s.x1 + s.x2) / 2 : s.x, my = s.t === 's' ? (s.y1 + s.y2) / 2 : s.y; glowAt('#ff6a1a', mx, my, s.r * 3, 0.3 + 0.08 * Math.sin(now * 2 + mx)); } ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+    // 桥
+    for (const b of mp.bridges) {
+      if (!vis(b.x, b.y, b.w)) continue;
+      const g = b.len / 2, w = b.w / 2;
+      const cA = b.k === 'water' ? ['#9a6a3a', '#6a4422'] : b.k === 'lava' ? ['#6a5a5a', '#3a2e30'] : ['#d8f0ff', '#8ab8dc'];
+      ctx.setTransform(Math.cos(b.ang) * K, Math.sin(b.ang) * K, -Math.sin(b.ang) * K, Math.cos(b.ang) * K, TX + K * b.x, TY + K * b.y);
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(-g + 6, -w + 6, g * 2 - 12, w * 2);
+      ctx.fillStyle = cA[0]; ctx.fillRect(-g + 8, -w, g * 2 - 16, w * 2);
+      ctx.strokeStyle = cA[1]; ctx.lineWidth = 2;
+      for (let yy = -w + 10; yy < w; yy += 12) { ctx.beginPath(); ctx.moveTo(-g + 8, yy); ctx.lineTo(g - 8, yy); ctx.stroke(); }
+      ctx.fillStyle = cA[1]; ctx.fillRect(-g + 2, -w - 4, 10, w * 2 + 8); ctx.fillRect(g - 12, -w - 4, 10, w * 2 + 8);
+      ctx.setTransform(K, 0, 0, K, TX, TY);
+    }
+  }
+
+  if (PROF) prof('特殊区域');
+  // 特殊区域
+  for (const z of mp.zones) {
+    if (!vis(z.x, z.y, z.r + 40)) continue;
+    const pulse = 0.5 + 0.5 * Math.sin(now * 3 + z.x);
+    if (z.k === 'spring') {
+      const s2 = z.r * 2.3; ctx.drawImage(Sp.mobj('spring'), z.x - s2 / 2, z.y - s2 / 2, s2, s2);
+      ctx.globalCompositeOperation = 'lighter'; glowAt('#7fe8ff', z.x, z.y, z.r * 1.3, 0.25 + 0.15 * pulse);
+      if (((now * 2 + z.x) % 1) < 0.05 && V.room(0.6)) V.p('star', z.x + U.rand(-z.r, z.r) * 0.6, z.y + U.rand(-z.r, z.r) * 0.5, 0, -30, 0.6, 7, '#bff8ff');
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    } else if (z.k === 'might' || z.k === 'haste') {
+      const col = z.k === 'might' ? '#ff4a5a' : '#3affd0';
+      ctx.globalCompositeOperation = 'lighter'; glowAt(col, z.x, z.y, z.r * 1.4, 0.25 + 0.2 * pulse);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.65 + 0.3 * pulse; rotDraw(Sp.rune(col), z.x, z.y, now * (z.k === 'might' ? 0.6 : -1.2), z.r * 2.1, z.r * 2.1);
+      ctx.globalAlpha = 0.9; ctx.drawImage(Sp.star(col), z.x - 14, z.y - 30 + Math.sin(now * 3) * 4, 28, 28); ctx.globalAlpha = 1;
+    } else if (z.k === 'shrine') {
+      const ready = z.cd <= 0;
+      ctx.globalAlpha = ready ? 0.8 : 0.3; rotDraw(Sp.rune('#ffd86a'), z.x, z.y + 6, now * 0.4, z.r * 2.4, z.r * 2.4); ctx.globalAlpha = 1;
+      const b2 = Sp.MOBOX.altar; ctx.drawImage(Sp.mobj('altar'), z.x - b2[2], z.y - b2[3] + 10, b2[0], b2[1]);
+      if (ready) { ctx.globalCompositeOperation = 'lighter'; glowAt('#ffd24a', z.x, z.y - 44 + Math.sin(now * 2) * 4, 24, 0.8); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.drawImage(Sp.gem(2), z.x - 9, z.y - 56 + Math.sin(now * 2) * 4, 18, 22); }
+      if (z.p > 0) { ctx.strokeStyle = '#ffd86a'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(z.x, z.y, z.r + 8, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, z.p / 3)); ctx.stroke(); }
+    } else if (z.k === 'swamp' || z.k === 'sand' || z.k === 'frost' || z.k === 'pool') {
+      const col = { swamp: '#4a5a24', sand: '#c49a52', frost: '#d8f2ff', pool: '#ff5a1a' }[z.k];
+      ctx.globalAlpha = 0.9; ctx.drawImage(Sp.pool(col), z.x - z.r * 1.08, z.y - z.r * 1.08, z.r * 2.16, z.r * 2.16); ctx.globalAlpha = 1;
+      if (z.k === 'sand') { ctx.strokeStyle = 'rgba(120,80,30,.45)'; ctx.lineWidth = 3; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(z.x, z.y, z.r * (0.25 + i * 0.22), now * (1 + i * 0.3), now * (1 + i * 0.3) + 4); ctx.stroke(); } }
+      else if (z.k === 'pool') { ctx.globalCompositeOperation = 'lighter'; glowAt('#ff7a2a', z.x, z.y, z.r * 1.4, 0.35 + 0.15 * pulse); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+      if (z.k !== 'sand') { ctx.strokeStyle = z.k === 'frost' ? 'rgba(255,255,255,.8)' : z.k === 'pool' ? '#ffe08a' : 'rgba(170,190,110,.8)'; ctx.lineWidth = 1.6; for (let i = 0; i < 5; i++) { const ph = (now * 0.8 + i * 0.37) % 1, an = i * 2.4 + z.x, rr = z.r * 0.6 * ((i * 0.31 + 0.2) % 1); ctx.globalAlpha = (1 - ph) * 0.8; ctx.beginPath(); ctx.arc(z.x + Math.cos(an) * rr, z.y + Math.sin(an) * rr, 1.5 + ph * 5, 0, TAU); ctx.stroke(); } ctx.globalAlpha = 1; }
+    } else if (z.k === 'vent') {
+      const s2 = z.r * 2; ctx.drawImage(Sp.mobj('crater'), z.x - s2 / 2, z.y - s2 / 2, s2, s2);
+      ctx.globalCompositeOperation = 'lighter'; glowAt('#ff6a1a', z.x, z.y, z.r * (0.8 + (z.warn ? 0.6 * pulse : 0.15)), z.warn ? 0.8 : 0.35); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      if (z.warn) { ctx.globalAlpha = 0.5 + 0.45 * Math.abs(Math.sin(now * 14)); rotDraw(Sp.rune('#ff3a2a'), z.x, z.y, now * 2, (z.r + 30) * 2.1, (z.r + 30) * 2.1); ctx.globalAlpha = 1; }
+      if (Math.random() < 0.08 && V.room(0.6)) V.p('ember', z.x + U.rand(-12, 12), z.y, U.rand(-20, 20), U.rand(-90, -50), 0.9, 4, '#ffb44a', { drag: 0.5 });
+    }
+  }
+  for (const pt of mp.portals) {
+    if (!vis(pt.x, pt.y, 70)) continue;
+    const s2 = pt.r * 3; ctx.drawImage(Sp.mobj('portal'), pt.x - s2 / 2, pt.y - s2 / 2, s2, s2);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#d0a0ff'; ctx.lineWidth = 3;
+    for (let i = 0; i < 3; i++) { ctx.globalAlpha = 0.6 * FXA; ctx.beginPath(); ctx.ellipse(pt.x, pt.y, pt.r * (0.4 + i * 0.25), pt.r * (0.34 + i * 0.21), 0, now * (2 + i) + i, now * (2 + i) + i + 3.6); ctx.stroke(); }
+    glowAt('#a86aff', pt.x, pt.y, pt.r * 1.7, 0.45);
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  }
+  for (const pd of mp.pads) {
+    if (!vis(pd.x, pd.y, 50) || (G.mapw || []).some(m => Math.hypot(m.x - pd.x, m.y - pd.y) < 40)) continue;
+    ctx.drawImage(Sp.mobj('pad'), pd.x - 34, pd.y - 30, 68, 68);
   }
 
   if (PROF) prof('地面贴花');
@@ -143,30 +310,30 @@ R.draw = function () {
   }
   ctx.globalAlpha = 1;
 
-  if (PROF) prof('散布小装饰');
-  // 散布小装饰
-  {
-    const SC = 110, a0x = Math.floor((x0 - 30) / SC), a1x = Math.floor((x1 + 30) / SC), a0y = Math.floor((y0 - 30) / SC), a1y = Math.floor((y1 + 30) / SC);
-    for (let gy = a0y; gy <= a1y; gy++) for (let gx = a0x; gx <= a1x; gx++) {
-      const h = U.hash(gx, gy, 21);
-      if (h > 0.42) continue;
-      const sx = gx * SC + U.hash(gx, gy, 22) * SC, sy = gy * SC + U.hash(gx, gy, 23) * SC;
-      ctx.drawImage(Sp.small(kind, (U.hash(gx, gy, 24) * 3) | 0), sx - 22, sy - 24, 44, 44);
+  // 障碍物（地形实体）：在玩家前方的先画，后方的在实体之后画，形成遮挡
+  const OBS = { tree: ['meadow', 0, 26], rock: ['meadow', 2, 20], drock: ['desert', 3, 20], pillar: ['desert', 1, 11], cactus: ['desert', 0, 13], crystal: ['frost', 1, 18], pine: ['frost', 0, 21], snowrock: ['frost', 2, 20], spire: ['lava', 0, 16], deadtree: ['lava', 2, 9] };
+  const WALL = { ruin: ['#a4a498', '#6e6e64', 24], sand: ['#e2c68c', '#b0925a', 26], ice: ['#d6f0ff', '#8ab8dc', 22], basalt: ['#4e3e46', '#2a1e24', 26], cliff: ['#b08654', '#6a4a2a', 40] };
+  const sortY = s => s.t === 'r' ? s.y + s.h : s.y;
+  const drawSolid = (s, fade) => {
+    if (fade) ctx.globalAlpha = 0.45;
+    if (s.t === 'c') {
+      if (s.k === 'palm') { const b2 = Sp.MOBOX.palm, sc = s.r / 14; ctx.drawImage(Sp.mobj('palm'), s.x - b2[2] * sc, s.y - b2[3] * sc + s.r * 0.3, b2[0] * sc, b2[1] * sc); }
+      else { const o = OBS[s.k] || OBS.rock, sc = s.r / o[2]; ctx.drawImage(Sp.deco(o[0], o[1]), s.x - 50 * sc, s.y - 80 * sc + s.r * 0.3, 100 * sc, 100 * sc); if (s.k === 'crystal') { ctx.globalCompositeOperation = 'lighter'; glowAt('#7fd8ff', s.x, s.y - s.r, s.r * 1.6, 0.25); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = fade ? 0.45 : 1; } }
+    } else if (s.t === 'r') {
+      const c = WALL[s.k] || WALL.ruin, Hh = c[2];
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(s.x + 4, s.y + s.h - 2, s.w, 10);
+      ctx.fillStyle = c[1]; ctx.fillRect(s.x, s.y + s.h - Hh, s.w, Hh);
+      ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1.5;
+      for (let xx = s.x + 18; xx < s.x + s.w; xx += 22) { ctx.beginPath(); ctx.moveTo(xx, s.y + s.h - Hh); ctx.lineTo(xx, s.y + s.h); ctx.stroke(); }
+      ctx.fillStyle = c[0]; ctx.fillRect(s.x, s.y - Hh, s.w, s.h);
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(s.x, s.y - Hh, s.w, 4);
+      ctx.strokeStyle = 'rgba(18,10,30,.85)'; ctx.lineWidth = 2; ctx.strokeRect(s.x, s.y - Hh, s.w, s.h + Hh);
+      ctx.beginPath(); ctx.moveTo(s.x, s.y + s.h - Hh); ctx.lineTo(s.x + s.w, s.y + s.h - Hh); ctx.stroke();
+      if (s.k === 'basalt') { ctx.strokeStyle = 'rgba(255,120,40,.8)'; ctx.lineWidth = 1.6; ctx.beginPath(); for (let xx = s.x + 10; xx < s.x + s.w - 10; xx += 46) { ctx.moveTo(xx, s.y - Hh + 6); ctx.lineTo(xx + 10, s.y - Hh + s.h * 0.5); ctx.lineTo(xx + 4, s.y + s.h - Hh - 4); } ctx.stroke(); }
     }
-  }
-  if (PROF) prof('场景装饰');
-  // 场景装饰
-  const nDeco = Sp.decoCount(kind);
-  const c0x = Math.floor((x0 - 60) / CHUNK), c1x = Math.floor((x1 + 60) / CHUNK);
-  const c0y = Math.floor((y0 - 30) / CHUNK), c1y = Math.floor((y1 + 90) / CHUNK);
-  for (let gy = c0y; gy <= c1y; gy++) for (let gx = c0x; gx <= c1x; gx++) {
-    if (U.hash(gx, gy, 1) > 0.55) continue;
-    const dx = gx * CHUNK + 30 + U.hash(gx, gy, 2) * (CHUNK - 60), dy = gy * CHUNK + 30 + U.hash(gx, gy, 3) * (CHUNK - 60);
-    const vi = Math.min(nDeco - 1, (U.hash(gx, gy, 4) * nDeco) | 0);
-    ctx.drawImage(Sp.deco(kind, vi), dx - 50, dy - 80, 100, 100);
-    if (kind === 'lava' && vi === 1) { ctx.globalCompositeOperation = 'lighter'; glowAt('#ff7a2a', dx, dy, 46 + Math.sin(now * 2 + gx) * 6, 0.45); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
-    if (kind === 'frost' && vi === 1) { ctx.globalCompositeOperation = 'lighter'; glowAt('#7fd8ff', dx + 4, dy - 18, 30, 0.25 + 0.1 * Math.sin(now * 2 + gy)); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
-  }
+    ctx.globalAlpha = 1;
+  };
+  for (const s of sol) if (sortY(s) < P.y && vis(s.t === 'r' ? s.x + s.w / 2 : s.x, s.t === 'r' ? s.y + s.h / 2 : s.y, 140)) drawSolid(s, false);
 
   if (PROF) prof('毒池');
   // 毒池
@@ -328,6 +495,17 @@ R.draw = function () {
   }
   for (let i = 0; i < G.bigs.length; i++) drawEnemy(G.bigs[i]);
 
+  // 障碍物（玩家身后的部分，挡住玩家时半透明）
+  for (const s of sol) {
+    const sy2 = sortY(s);
+    if (sy2 < P.y) continue;
+    const cx2 = s.t === 'r' ? s.x + s.w / 2 : s.x;
+    if (!vis(cx2, sy2, 160)) continue;
+    let fade = false;
+    if (s.t === 'c') fade = Math.abs(P.x - s.x) < s.r * 1.6 + 8 && P.y > sy2 - s.r * 3.4;
+    else fade = P.x > s.x - 10 && P.x < s.x + s.w + 10 && P.y > s.y - 40;
+    drawSolid(s, fade);
+  }
   // 地图武器炮管、战车与能量条
   for (const mw of G.mapw || []) {
     if (!vis(mw.x, mw.y, 70)) continue;

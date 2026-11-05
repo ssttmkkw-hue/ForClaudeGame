@@ -73,7 +73,7 @@ F.ult = function () {
   UI().banner('☄ 星陨天降！', 1600);
   return true;
 };
-function inView(e) { return Math.abs(e.x - G.p.x) < SF.view.hw + 20 && Math.abs(e.y - G.p.y) < SF.view.hh + 20; }
+function inView(e) { const c = SF.Map.camera(); return Math.abs(e.x - c[0]) < SF.view.hw + 20 && Math.abs(e.y - c[1]) < SF.view.hh + 20; }
 function updateSkills(dt) {
   const sk = G.sk, P = G.p;
   if (sk.dashCd > 0) sk.dashCd -= dt;
@@ -85,7 +85,7 @@ function updateSkills(dt) {
       const cand = G.enemies.filter(e => !e.dead && inView(e));
       let x, y;
       if (cand.length) { const e = cand[(Math.random() * cand.length) | 0]; x = e.x + U.rand(-20, 20); y = e.y + U.rand(-20, 20); }
-      else { x = P.x + U.rand(-SF.view.hw, SF.view.hw) * 0.8; y = P.y + U.rand(-SF.view.hh, SF.view.hh) * 0.8; }
+      else { const c = SF.Map.camera(); x = c[0] + U.rand(-SF.view.hw, SF.view.hw) * 0.8; y = c[1] + U.rand(-SF.view.hh, SF.view.hh) * 0.8; }
       G.fx.push({ k: 'meteor', x, y, t: 0.45, T: 0.45, r: 72, dmg, slot: 7, evo: true, rot: Math.random() * 6, src: 'ult' });
     }
     if (sk.ultT <= 0) {
@@ -138,12 +138,16 @@ F.movePlayer = function (dt) {
 /* ======================= 地图武器 ======================= */
 function spawnMapw() {
   const P = G.p, kinds = ['cannon', 'flamer', 'tank'];
-  const kind = U.choice(kinds), a = Math.random() * TAU, r = U.rand(170, 260);
+  const kind = U.choice(kinds), pads = SF.Map.get().pads;
+  const free = pads.filter(p => !G.mapw.some(m => !m.dead && Math.hypot(m.x - p.x, m.y - p.y) < 40));
+  if (!free.length) return;
+  free.sort((a, b) => Math.abs(Math.hypot(a.x - P.x, a.y - P.y) - 450) - Math.abs(Math.hypot(b.x - P.x, b.y - P.y) - 450));
+  const pad = free[Math.min(free.length - 1, (Math.random() * 2) | 0)];
   const def = SF.MAPW[kind], dur = def.dur * (1 + 0.2 * meta('mapwm'));
-  G.mapw.push({ kind, x: P.x + Math.cos(a) * r, y: P.y + Math.sin(a) * r, aim: -Math.PI / 2, ang: 0, tAng: 0, manual: false, energy: dur, max: dur,
+  G.mapw.push({ kind, x: pad.x, y: pad.y, aim: -Math.PI / 2, ang: 0, tAng: 0, manual: false, energy: dur, max: dur,
     hp: def.hp || 0, maxHp: def.hp || 0, fireT: 0, tick: 0, mounted: false, dead: false, t: 0, flash: 0, firing: false });
-  G.fx.push({ k: 'pillar', x: P.x + Math.cos(a) * r, y: P.y + Math.sin(a) * r, life: 1.2, T: 1.2 });
-  UI().banner('🛠 发现「' + def.name + '」！靠近后点「操控」', 2400);
+  G.fx.push({ k: 'pillar', x: pad.x, y: pad.y, life: 1.2, T: 1.2 });
+  UI().banner('🛠 武器台出现「' + def.name + '」！靠近后点「操控」', 2400);
   A().sfx('chest');
 }
 function nearestTarget(x, y, range) {
@@ -195,7 +199,6 @@ function updateMapw(dt) {
     mw.t += dt;
     if (mw.flash > 0) mw.flash -= dt;
     if (!mw.mounted) {
-      if (Math.hypot(P.x - mw.x, P.y - mw.y) > 1600) mw.dead = true;
       continue;
     }
     mw.energy -= dt;
