@@ -54,6 +54,7 @@ V.death = function (e) {
 };
 V.explosion = function (x, y, R, cols, o) {
   o = o || {};
+  if (SF.Map && SF.Map.hitProps && !o.noProp) SF.Map.hitProps(x, y, R * 0.9, 60);
   const [cA, cB] = cols || ['#ff8a3a', '#ffd24a'];
   V.p('glow', x, y, 0, 0, 0.16, R * 1.3, '#ffffff');
   V.p('glow', x, y, 0, 0, 0.35, R * 2.0, cA);

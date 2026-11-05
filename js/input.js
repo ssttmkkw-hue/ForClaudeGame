@@ -41,6 +41,8 @@ In.init = function () {
       if (k === ' ' || k === 'shift') SF.Feat.dash();
       else if (k === 'q') SF.Feat.ult();
       else if (k === 'f' || k === 'e') SF.Feat.toggleMount();
+      else if (k === '1') SF.Feat.useItem(0);
+      else if (k === '2') SF.Feat.useItem(1);
     }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   });

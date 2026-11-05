@@ -52,7 +52,7 @@ const NEAR = [];
 function bucketize(m) {
   m.bw = Math.ceil((m.maxX - m.minX) / CELL); m.bh = Math.ceil((m.maxY - m.minY) / CELL);
   m.buckets = []; for (let i = 0; i < m.bw * m.bh; i++) m.buckets.push([]);
-  const add = (s, liquid) => {
+  const add = m.addShape = (s, liquid) => {
     s.liquid = liquid; s._s = 0;
     const [a, b, c, d] = aabb(s);
     const x0 = clamp(((a - m.minX) / CELL) | 0, 0, m.bw - 1), x1 = clamp(((c - m.minX) / CELL) | 0, 0, m.bw - 1);
@@ -84,7 +84,7 @@ M.collide = function (o, r, fly) {
   const list = near(o.x - r - 4, o.y - r - 4, o.x + r + 4, o.y + r + 4);
   for (let k = 0; k < 2; k++) {
     let moved = false;
-    for (let i = 0; i < list.length; i++) if (pushOut(o, r, list[i])) moved = true;
+    for (let i = 0; i < list.length; i++) if (!list[i].dead && pushOut(o, r, list[i])) moved = true;
     if (!moved) break;
   }
   o.x = clamp(o.x, m.minX + r, m.maxX - r); o.y = clamp(o.y, m.minY + r, m.maxY - r);
@@ -95,7 +95,7 @@ M.blocked = function (x, y, r, fly) {
   if (x < m.minX + r || x > m.maxX - r || y < m.minY + r || y > m.maxY - r) return true;
   if (fly) return false;
   const list = near(x - r, y - r, x + r, y + r);
-  for (let i = 0; i < list.length; i++) if (hits(x, y, r, list[i])) return true;
+  for (let i = 0; i < list.length; i++) if (!list[i].dead && hits(x, y, r, list[i])) return true;
   return false;
 };
 M.valid = (x, y, r) => !M.blocked(x, y, r || 14, false);
@@ -308,8 +308,105 @@ const LAYOUT = {
     scatter(m, 12, 'deadtree', 16, 22);
   }
 };
-const SIZE = { meadow: 2400, desert: 2600, frost: 2600, lava: 2800 };
-const SEED = { meadow: 11, desert: 23, frost: 37, lava: 53 };
+Object.assign(LAYOUT, {
+  swamp(m) {
+    m.spawn = { x: 0, y: 60 };
+    river(m, [[-1300, 520], [-760, 380], [-240, 580], [300, 400], [820, 560], [1300, 320]], 62, 'bog', [1, 3]);
+    river(m, [[-420, -1300], [-300, -760], [-520, -260]], 54, 'bog', [0]);
+    for (const [x, y, r] of [[760, -300, 120], [-980, -620, 100], [480, 1000, 110], [-860, 1040, 90]]) m.liquids.push({ t: 'c', x, y, r, k: 'bog' });
+    walls(m, 760, -900, 380, 300, 26, ['s', 'w'], 'rotwood');
+    zone(m, 'shrine', 760, -900, 60);
+    zone(m, 'swamp', -760, -80, 160); zone(m, 'swamp', 300, -560, 140); zone(m, 'swamp', 1000, 860, 130);
+    zone(m, 'toxic', -200, 980, 110); zone(m, 'toxic', 1060, 100, 100); zone(m, 'toxic', -1060, 220, 96);
+    zone(m, 'spring', 120, -1000, 66);
+    zone(m, 'might', -1020, -1020, 64); zone(m, 'haste', 1080, -1080, 64);
+    m.portals.push({ x: -1140, y: 1140, r: 40, to: 1 }, { x: 1140, y: 1150, r: 40, to: 0 });
+    m.pads.push({ x: 300, y: 160 }, { x: -640, y: -540 }, { x: 900, y: -560 }, { x: -620, y: 860 }, { x: 640, y: 760 });
+    for (const [x, y, n] of [[-700, -880, 8], [320, -260, 6], [-960, 640, 7], [1000, -620, 6], [-260, -560, 5], [180, 820, 6]]) grove(m, x, y, n, 170, 'mangrove', 24, 30);
+    scatter(m, 16, 'shroom', 18, 24);
+    scatter(m, 12, 'stump', 16, 22);
+    scatter(m, 10, 'reeds', 14, 18);
+  },
+  city(m) {
+    m.spawn = { x: 0, y: 0 };
+    m.mech = { tesla: 3, obelisk: 1, curse: 1, boost: 5, spikes: 5 };
+    m.propN = [20, 22];
+    const COLS = [-1100, -660, -220, 220, 660, 1100], ROWS = [-1100, -660, -220, 220, 660, 1100];
+    const open = { '-220,-220': 1, '220,-220': 1, '-220,220': 1, '220,220': 1, '-660,-660': 'shrine', '660,660': 'spring', '1100,-660': 'park', '-1100,660': 'park', '660,-1100': 'park', '-660,1100': 'park', '-1100,-220': 'park', '1100,220': 'park' };
+    for (const cx of COLS) for (const cy of ROWS) {
+      const o = open[cx + ',' + cy];
+      if (o) {
+        if (o === 'shrine') { walls(m, cx, cy, 300, 260, 24, ['s', 'e'], 'building2'); zone(m, 'shrine', cx, cy, 58); }
+        else if (o === 'spring') zone(m, 'spring', cx, cy, 64);
+        else if (o === 'park' && m.rand() < 0.5) zone(m, 'toxic', cx, cy, 96);
+        continue;
+      }
+      const w = 250 + m.rand() * 50, h = 200 + m.rand() * 50;
+      if (m.rand() < 0.3) { // 两栋楼中间夹一条小巷
+        const a = (w - 70) / 2;
+        solidR(m, cx - w / 2, cy - h / 2, a, h, 'building'); solidR(m, cx - w / 2 + a + 70, cy - h / 2, a, h, 'building');
+      } else solidR(m, cx - w / 2, cy - h / 2, w, h, 'building');
+    }
+    river(m, [[-1400, 440], [-1060, 440], [-700, 440], [-300, 440], [300, 440], [700, 440], [1060, 440], [1400, 440]], 46, 'acid', [1, 3, 5]);
+    // 街道上的汽车与路灯
+    const VS = [-880, -440, 0, 440, 880];
+    for (const x of VS) for (const y of ROWS) if (Math.abs(y - 440) > 200 && m.rand() < 0.45 && !(Math.abs(x) < 450 && Math.abs(y) < 450)) solidC(m, x + (m.rand() < 0.5 ? -42 : 42), y + U.rand(-50, 50), 19, 'car');
+    for (const y of VS) for (const x of COLS) if (y !== 440 && m.rand() < 0.4 && !(Math.abs(x) < 450 && Math.abs(y) < 450)) solidC(m, x + U.rand(-60, 60), y + (m.rand() < 0.5 ? -42 : 42), 19, 'car');
+    for (const x of VS) for (const y of VS) if (y !== 440 && !(x === 0 && y === 0)) solidC(m, x + 62, y - 62, 8, 'lamp');
+    m.solids = m.solids.filter(o => !(o.k === 'car' && Math.hypot(o.x + 660, o.y + 660) < 260));
+    m.portals.push({ x: -1250, y: -1250, r: 40, to: 1 }, { x: 1250, y: 1250, r: 40, to: 0 });
+    m.pads.push({ x: 260, y: 200 }, { x: -300, y: -250 }, { x: -880, y: 880 }, { x: 880, y: -880 }, { x: 0, y: 1100 });
+    for (const [x, y] of [[-200, -330], [330, -180], [-330, 180], [180, 300]]) solidC(m, x, y, 18, 'junk');
+    for (const [x, y] of [[0, -300], [-300, 0], [300, 0], [0, 260]]) solidC(m, x, y, 12, 'hydrant');
+  },
+  sky(m) {
+    m.spawn = { x: 100, y: 0 };
+    m.mech = { tesla: 1, obelisk: 2, curse: 1, boost: 4, spikes: 2 };
+    river(m, [[-1400, -420], [-800, -520], [-200, -380], [400, -520], [1000, -400], [1400, -480]], 66, 'void', [1, 3]);
+    river(m, [[-1400, 520], [-800, 420], [-200, 560], [400, 420], [1000, 560], [1400, 460]], 66, 'void', [1, 3]);
+    river(m, [[-650, -470], [-600, 0], [-650, 470]], 58, 'void', [0]);
+    river(m, [[-300, -1400], [-250, -900], [-260, -420]], 58, 'void', [0]);
+    river(m, [[200, 500], [150, 1000], [220, 1400]], 58, 'void', [0]);
+    walls(m, 860, -980, 360, 300, 26, ['s', 'w'], 'marble');
+    zone(m, 'shrine', 860, -980, 58);
+    for (const [x, y] of [[-1000, 0], [500, 40], [-900, 960], [900, 960]]) zone(m, 'storm', x, y, 100);
+    zone(m, 'spring', -900, -980, 66);
+    zone(m, 'might', 1100, 100, 64); zone(m, 'haste', -1100, -260, 64); zone(m, 'haste', 600, 1150, 64);
+    m.portals.push({ x: -1200, y: 1220, r: 40, to: 1 }, { x: 1220, y: -1220, r: 40, to: 0 });
+    m.pads.push({ x: 320, y: -180 }, { x: -1040, y: 300 }, { x: 960, y: 220 }, { x: -520, y: -1000 }, { x: -300, y: 1000 });
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; solidC(m, 100 + Math.cos(a) * 250, Math.sin(a) * 200, 14, 'column'); }
+    for (const [x, y, n] of [[-1000, -900, 5], [1000, 900, 5], [-900, 300, 4], [700, -200, 4], [400, 960, 4]]) grove(m, x, y, n, 150, 'ctree', 20, 26);
+    scatter(m, 10, 'statue', 18, 22);
+    scatter(m, 14, 'cloudbush', 16, 22);
+    scatter(m, 10, 'column', 13, 16);
+  }
+});
+// 通用地图机关：雷霆塔、智慧方尖碑、诅咒祭坛、加速带、地刺；可破坏木箱与火药桶
+function freeSpot(m, r, tries) {
+  for (let i = 0; i < (tries || 60); i++) {
+    const x = U.lerp(m.minX + 140, m.maxX - 140, m.rand()), y = U.lerp(m.minY + 140, m.maxY - 140, m.rand());
+    if (isFree(m, x, y, r, 40)) return [x, y];
+  }
+  return null;
+}
+function mechanisms(m) {
+  const cfg = m.mech || { tesla: 1, obelisk: 1, curse: 1, boost: 3, spikes: 3 };
+  for (const k of ['tesla', 'obelisk', 'curse']) for (let i = 0; i < (cfg[k] || 0); i++) { const p = freeSpot(m, 60); if (p) zone(m, k, p[0], p[1], 50); }
+  for (let i = 0; i < (cfg.boost || 0); i++) { const p = freeSpot(m, 40); if (p) zone(m, 'boost', p[0], p[1], 34, { ang: m.rand() * TAU }); }
+  for (let i = 0; i < (cfg.spikes || 0); i++) { const p = freeSpot(m, 46); if (p) zone(m, 'spikes', p[0], p[1], 46, { t: m.rand() * 3 }); }
+}
+function props(m) {
+  m.props = [];
+  const n = m.propN || [26, 12];
+  for (const [k, cnt, r] of [['crate', n[0], 16], ['barrel', n[1], 15]]) for (let i = 0; i < cnt; i++) {
+    const p = freeSpot(m, r + 10, 30);
+    if (!p || !M.valid(p[0], p[1], r + 8)) continue;
+    const pr = { t: 'c', x: p[0], y: p[1], r, k, prop: true, hp: k === 'crate' ? 30 : 20, max: k === 'crate' ? 30 : 20, dead: false, re: 0 };
+    m.props.push(pr); m.addShape(pr, false);
+  }
+}
+const SIZE = { meadow: 2400, desert: 2600, frost: 2600, lava: 2800, swamp: 2600, city: 2800, sky: 2800 };
+const SEED = { meadow: 11, desert: 23, frost: 37, lava: 53, swamp: 71, city: 89, sky: 97 };
 
 M.build = function (stage) {
   const kind = stage.deco;
@@ -317,8 +414,10 @@ M.build = function (stage) {
   map = m;
   m.solids.length = 0;
   (LAYOUT[kind] || LAYOUT.meadow)(m);
+  mechanisms(m);
   bucketize(m);
   buildFlow(m);
+  props(m);
   // 武器台、传送门、区域中心都必须可走
   for (const p of m.pads) { const v = M.nearestValid(p.x, p.y); p.x = v[0]; p.y = v[1]; }
   for (const p of m.portals) { const v = M.nearestValid(p.x, p.y); p.x = v[0]; p.y = v[1]; }
@@ -330,8 +429,9 @@ M.build = function (stage) {
 };
 
 /* ======================= 区域效果 ======================= */
-const TAGS = { spring: '治愈泉：持续回复生命', might: '狂暴符文：伤害 +35%', haste: '疾风符文：移速 +40%', swamp: '沼泽：移动减速',
-  sand: '流沙：移动减速', frost: '寒霜冻土：移动减速', pool: '熔岩池：持续灼烧！', shrine: '宝藏祭坛：停留激活' };
+const TAGS = { boost: '加速带：冲刺！', spikes: '小心地刺陷阱！', spring: '治愈泉：持续回复生命', might: '狂暴符文：伤害 +35%', haste: '疾风符文：移速 +40%', swamp: '沼泽：移动减速',
+  sand: '流沙：移动减速', frost: '寒霜冻土：移动减速', pool: '熔岩池：持续灼烧！', shrine: '宝藏祭坛：停留激活',
+  toxic: '腐蚀毒沼：持续中毒！（敌人同样受伤）', storm: '雷暴区：注意落雷！' };
 function slowEnemies(z, mul) {
   const list = SF.Core.query(z.x, z.y, z.r + 30);
   for (const e of list) {
@@ -368,20 +468,54 @@ M.update = function (dt) {
       const mul = z.k === 'frost' ? 0.65 : 0.55;
       if (inP && !(G.mount && G.mount.kind === 'tank')) moveMul *= mul;
       slowEnemies(z, mul);
-    } else if (z.k === 'pool') {
+    } else if (z.k === 'pool' || z.k === 'toxic') {
       z.tick -= dt;
       if (z.tick <= 0) { z.tick = 0.5; damageArea(z, z.r, 18 * G.stats.might, inP && !(G.mount && G.mount.kind === 'tank') ? 6 * dmgS : 0, null); }
-    } else if (z.k === 'vent') {
+    } else if (z.k === 'vent' || z.k === 'storm') {
       if (z.t <= 0) z.t = U.rand(4, 7);
       z.t -= dt;
       z.warn = z.t < 1.2;
       if (z.t <= 0) {
         z.t = U.rand(5, 8);
         damageArea(z, z.r + 30, 80 * (1 + G.level * 0.06), 22 * dmgS, null);
+        if (z.k === 'storm') {
+          for (let i = 0; i < 3; i++) { const a = U.rand(0, TAU), d = U.rand(0, z.r * 0.6); G.fx.push({ k: 'bolt', pts: [z.x + Math.cos(a) * d + U.rand(-60, 60), z.y - 520, z.x + Math.cos(a) * d, z.y + Math.sin(a) * d], life: 0.3, T: 0.3, col: '#ffe84a', seed: Math.random() * 999 }); }
+          SF.VFX.explosion(z.x, z.y, z.r + 30, ['#bff0ff', '#ffe84a'], { decal: false });
+          SF.Audio.sfx('lightning');
+        } else
         SF.VFX.explosion(z.x, z.y, z.r + 30, ['#ff6a1a', '#ffd24a'], { decal: false });
         G.shake = Math.max(G.shake, Math.hypot(P.x - z.x, P.y - z.y) < 500 ? 5 : 0);
         SF.Audio.sfx('slam');
       }
+    } else if (z.k === 'boost') {
+      if (inP && (G.boostCd || 0) <= 0 && !G.mount && P.dashT <= 0) {
+        P.dashT = 0.3; P.dvx = Math.cos(z.ang) * 760; P.dvy = Math.sin(z.ang) * 760; P.inv = Math.max(P.inv, 0.35);
+        G.boostCd = 0.8; SF.Audio.sfx('dash'); SF.VFX.burst(P.x, P.y, '#7affff', 10, 180, 0.35, 3, 'spark');
+      }
+    } else if (z.k === 'spikes') {
+      z.t += dt; const ph = z.t % 3.2;
+      z.warn = ph > 2.0 && ph < 2.6; z.up = ph >= 2.6;
+      if (z.up && !z.hit) { z.hit = true; damageArea(z, z.r, 45 * (1 + G.level * 0.06), 10 * dmgS, null); SF.Audio.sfx('hit'); }
+      if (!z.up) z.hit = false;
+    } else if (z.k === 'tesla' || z.k === 'obelisk' || z.k === 'curse') {
+      const need = z.k === 'tesla' ? 1.2 : z.k === 'obelisk' ? 2 : 1.5;
+      if (z.on > 0) {
+        z.on -= dt; z.tick -= dt;
+        if (inP) tag = '雷霆塔：运转中 ' + Math.ceil(z.on) + ' 秒';
+        if (z.tick <= 0) {
+          z.tick = 0.6;
+          const C = SF.Core, tg = C.nearest(4, 320, z.x, z.y - 60).slice();
+          C.src = 'mapw';
+          for (const e of tg) { C.hurt(e, 30 * (1 + G.level * 0.07) * G.stats.might, 0, 0); e.stun = Math.max(e.stun, 0.2); G.fx.push({ k: 'bolt', pts: [z.x, z.y - 62, e.x, e.y], life: 0.22, T: 0.22, col: '#9fd8ff', seed: Math.random() * 999 }); }
+          C.src = null;
+          if (tg.length) SF.Audio.sfx('lightning');
+        }
+        if (z.on <= 0) z.cd = 45;
+      } else if (z.cd > 0) { z.cd -= dt; if (inP) tag = MECH_NAME[z.k] + '：' + Math.ceil(z.cd) + ' 秒后可再次激活'; }
+      else if (inP) {
+        z.p += dt; tag = MECH_NAME[z.k] + '：激活中 ' + Math.min(100, (z.p / need * 100) | 0) + '%';
+        if (z.p >= need) { z.p = 0; activateMech(z); }
+      } else z.p = Math.max(0, z.p - dt * 2);
     } else if (z.k === 'shrine') {
       if (z.cd > 0) { z.cd -= dt; if (inP) tag = '宝藏祭坛：' + Math.ceil(z.cd) + ' 秒后可再次激活'; }
       else if (inP) {
@@ -391,6 +525,9 @@ M.update = function (dt) {
       } else z.p = Math.max(0, z.p - dt * 2);
     }
   }
+  if (G.boostCd > 0) G.boostCd -= dt;
+  if (G.curseT > 0) { G.curseT -= dt; if (!tag) tag = '☠ 诅咒中：敌人更强，经验金币 ×2（' + Math.ceil(G.curseT) + ' 秒）'; }
+  updateProps(dt);
   // 传送门
   if (G.portalCd > 0) G.portalCd -= dt;
   else if (!G.mount || G.mount.kind === 'tank') {
@@ -408,11 +545,90 @@ M.update = function (dt) {
     }
   }
   if (G.portalCd > 2.2) tag = '传送门：瞬间移动！';
+  if (G.berserkT > 0) mightMul *= 1.4;
   st.might = st.mightBase * mightMul;
   st.move = st.moveBase * moveMul;
+  st.cd = st.cdBase * (G.berserkT > 0 ? 0.7 : 1);
   G.zoneTag = tag;
 };
+const MECH_NAME = { tesla: '雷霆塔', obelisk: '智慧方尖碑', curse: '诅咒祭坛' };
+function activateMech(z) {
+  G.run.mech = (G.run.mech || 0) + 1;
+  G.fx.push({ k: 'pillar', x: z.x, y: z.y, life: 1.1, T: 1.1 });
+  if (z.k === 'tesla') { z.on = 20; z.tick = 0; SF.UI.banner('⚡ 雷霆塔启动！自动电击附近敌人', 2000); SF.Audio.sfx('lightning'); }
+  else if (z.k === 'obelisk') {
+    z.cd = 120; const n = 1 + (G.level >= 15 ? 1 : 0); G.pending += n; G.level += 0;
+    SF.VFX.sparkle(z.x, z.y - 40, '#9fd8ff', 24); SF.UI.banner('📘 智慧方尖碑：获得 ' + n + ' 次升级！', 2000); SF.Audio.sfx('levelup');
+  } else if (z.k === 'curse') {
+    z.cd = 150; G.curseT = 60;
+    SF.VFX.sparkle(z.x, z.y - 30, '#c060ff', 24); SF.UI.banner('☠ 接受诅咒：60 秒内敌人更强，经验金币翻倍', 2600); SF.Audio.sfx('boss');
+  }
+}
+// 可破坏物：被投射物 / 范围攻击 / 爆炸破坏，之后重生
+function updateProps(dt) {
+  const m = map, P = G.p;
+  const cam = M.camera(), hw = SF.view.hw + 60, hh = SF.view.hh + 60;
+  const vis = [];
+  for (const p of m.props) {
+    if (p.dead) {
+      p.re -= dt;
+      if (p.re <= 0 && (Math.abs(p.x - P.x) > hw + 100 || Math.abs(p.y - P.y) > hh + 100)) { p.dead = false; p.hp = p.max; }
+      continue;
+    }
+    if (Math.abs(p.x - cam[0]) < hw && Math.abs(p.y - cam[1]) < hh) vis.push(p);
+  }
+  if (!vis.length) return;
+  for (const pj of G.proj) {
+    if (pj.dead) continue;
+    for (const p of vis) {
+      if (p.dead) continue;
+      const dx = pj.x - p.x, dy = pj.y - p.y, rr = p.r + pj.r;
+      if (dx * dx + dy * dy < rr * rr && !(pj.hitP && pj.hitP.includes(p))) {
+        (pj.hitP || (pj.hitP = [])).push(p);
+        damageProp(p, pj.dmg);
+        if (!pj.rehit && pj.k !== 'disc') { if (pj.pierce <= 0) pj.dead = true; else pj.pierce--; }
+      }
+    }
+  }
+}
+function damageProp(p, dmg) {
+  if (p.dead) return;
+  p.hp -= dmg; p.flash = 0.1;
+  if (p.hp > 0) return;
+  p.dead = true; p.re = p.k === 'crate' ? 30 : 45;
+  const C = SF.Core, U2 = U;
+  if (p.k === 'crate') {
+    G.run.crates = (G.run.crates || 0) + 1; SF.Feat.onProp('crate');
+    SF.VFX.burst(p.x, p.y, '#a8743a', 10, 200, 0.5, 4, 'shard');
+    for (let i = 0; i < 3; i++) C.dropGem(p.x + U2.rand(-14, 14), p.y + U2.rand(-14, 14), 2 * G.stage.xpMul);
+    const r = Math.random(), l = 1 + G.stats.luck;
+    if (r < 0.35 * l) C.dropPick('coin', p.x, p.y, Math.max(1, Math.round(G.stage.goldMul * U2.rand(2, 5))));
+    else if (r < 0.5 * l) C.dropPick('heart', p.x, p.y);
+    else if (r < 0.55 * l) C.dropPick('magnet', p.x, p.y);
+    else if (r < 0.6 * l) C.dropPick('bomb', p.x, p.y);
+    else if (r < 0.63 * l) C.dropPick('chest', p.x, p.y);
+    SF.Audio.sfx('hit');
+  } else {
+    G.run.barrels = (G.run.barrels || 0) + 1; SF.Feat.onProp('barrel');
+    const z = { x: p.x, y: p.y };
+    damageArea(z, 115, 90 * (1 + G.level * 0.07) * G.stats.might, Math.hypot(G.p.x - p.x, G.p.y - p.y) < 115 ? 12 * G.stage.dmgMul : 0, 'prop');
+    SF.VFX.explosion(p.x, p.y, 105, ['#ff6a1a', '#ffe08a']);
+    G.shake = Math.max(G.shake, 6); SF.Audio.sfx('explode');
+  }
+}
+// 范围伤害波及可破坏物（爆炸、近战武器等调用）
+M.hitProps = function (x, y, r, dmg) {
+  const m = map;
+  if (!m || !m.props) return;
+  const list = near(x - r - 20, y - r - 20, x + r + 20, y + r + 20);
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    if (!p.prop || p.dead) continue;
+    if (Math.hypot(p.x - x, p.y - y) < r + p.r) damageProp(p, dmg);
+  }
+};
 function activateShrine(z) {
+  G.run.mech = (G.run.mech || 0) + 1;
   z.p = 0; z.cd = 90;
   const C = SF.Core;
   let id = G.waveDefs[0].e;

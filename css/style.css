@@ -327,3 +327,20 @@ button.link { color: #9fd8ff; font: 700 12px system-ui; text-decoration: underli
 #bossbar { top: calc(var(--safe-t) + 166px) !important; }
 
 #banner { top: 42% !important; }
+
+/* ---------- 道具按钮 ---------- */
+#acts { width: 240px !important; }
+.act.item { width: 54px; height: 54px; display: none; border-color: rgba(106,208,255,.6); }
+.act.item.ready { border-color: #9fe6ff; }
+.act.item em { font-size: 15px; }
+#btn-i0 { right: 106px; bottom: 84px; }
+#btn-i1 { right: 172px; bottom: 30px; }
+
+/* ---------- 道具选择 / 武器池 ---------- */
+.itemrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.ichip { position: relative; display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 5px; border-radius: 14px; background: var(--panel); border: 1.5px solid var(--line); font: 800 13px system-ui; }
+.ichip img.ico { width: 34px; height: 34px; }
+.ichip em { font-style: normal; font-size: 10px; color: var(--dim); }
+.ichip.on { border-color: #6ad0ff; background: linear-gradient(180deg, rgba(30,74,106,.95), rgba(12,28,46,.95)); box-shadow: 0 0 12px rgba(106,208,255,.35); }
+.build.pool span { opacity: .45; }
+.build.pool span.got { opacity: 1; }

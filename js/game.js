@@ -40,7 +40,7 @@ function query(x, y, r) {
   if (x + r < gx0 || y + r < gy0) return QR;
   const arr = G.enemies;
   for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
-    for (let j = gHead[cy * GN + cx]; j !== -1; j = gNext[j]) { const e = arr[j]; if (!e.dead) QR.push(e); }
+    for (let j = gHead[cy * GN + cx]; j !== -1; j = gNext[j]) { const e = arr[j]; if (e && !e.dead) QR.push(e); }
   }
   return QR;
 }
@@ -102,7 +102,7 @@ Core.src = null; // 当前伤害来源（'mapw' / 'dash' / 'ult'），用于击�
 
 /* ------------------------- 属性 ------------------------- */
 function recalc() {
-  const S = { might: 0, cd: 0, area: 0, move: 0, hp: 0, hpMul: 0, regen: 0, armor: 0, magnet: 0, growth: 0, greed: 0, luck: 0, amount: 0, revive: 0, reroll: 0, skip: 0, dashm: 0, ultm: 0, mapwm: 0 };
+  const S = { might: 0, cd: 0, area: 0, move: 0, hp: 0, hpMul: 0, regen: 0, armor: 0, magnet: 0, growth: 0, greed: 0, luck: 0, amount: 0, revive: 0, reroll: 0, skip: 0, dashm: 0, ultm: 0, mapwm: 0, belt: 0 };
   const meta = Save.data.meta;
   for (const id in SF.META) { const lv = meta[id] || 0; if (lv) S[SF.META[id].key] += SF.META[id].per * lv; }
   const m = G.ch.mod;
@@ -110,7 +110,7 @@ function recalc() {
   for (const id in G.passives) { const p = SF.PASSIVES[id]; S[p.key] += p.per * G.passives[id]; }
   const st = G.stats || (G.stats = {});
   st.might = 1 + S.might; st.cd = Math.max(0.35, 1 + S.cd); st.area = 1 + S.area; st.move = 1 + S.move;
-  st.mightBase = st.might; st.moveBase = st.move;
+  st.mightBase = st.might; st.moveBase = st.move; st.cdBase = st.cd;
   const oldMax = G.p.maxHp || 0;
   G.p.maxHp = Math.round((100 + S.hp) * (1 + S.hpMul));
   if (oldMax) G.p.hp = Math.min(G.p.maxHp, G.p.hp + Math.max(0, G.p.maxHp - oldMax)); else G.p.hp = G.p.maxHp;
@@ -133,7 +133,7 @@ Game.start = function (stageId, charId) {
   const meta = Save.data.meta;
   Object.assign(G, {
     state: 'play', stage: st, ch, chId: charId, p: P, time: 0, frame: 0, kills: 0, gold: 0, level: 1, xp: 0, xpNeed: xpNeed(1),
-    pending: 0, chests: 0, bossKills: 0, enemies: [], bigs: [], proj: [], eproj: [], gems: [], picks: [], parts: [], texts: [], fx: [], zones: [], decals: [],
+    pending: 0, chests: 0, bossKills: 0, curseT: 0, boostCd: 0, enemies: [], bigs: [], proj: [], eproj: [], gems: [], picks: [], parts: [], texts: [], fx: [], zones: [], decals: [], traps: [], vortex: [],
     weapons: [], passives: {}, shake: 0, hurtFlash: 0, nextId: 1, evIdx: 0, endT: undefined, victory: false, slowmo: 0,
     waveDefs: st.waves(st.w), acc: [], opts: null, bossRef: null, flash: 0, lastGemSfx: 0, damageTaken: 0
   });
@@ -142,6 +142,8 @@ Game.start = function (stageId, charId) {
   recalc();
   G.revives = G.stats.revive; G.rerolls = G.stats.reroll; G.skips = G.stats.skip;
   addWeapon(ch.start);
+  // 本局武器池：初始武器 + 随机 9 种
+  G.wpool = [ch.start].concat(U.shuffle(Object.keys(SF.WEAPONS).filter(id => id !== ch.start)).slice(0, 9));
   SF.Feat.start();
   // 开场预热：少量敌人，避免空等
   for (let i = 0; i < 7; i++) { const pt = edgePoint(Math.random() * TAU, -10 + Math.random() * 40); spawnEnemy(G.waveDefs[0].e, pt[0], pt[1]); }
@@ -151,12 +153,12 @@ Game.start = function (stageId, charId) {
 };
 
 /* ------------------------- 敌人 ------------------------- */
-const FLY_SHAPES = { bat: 1, ghost: 1, lich: 1, demon: 1 };
+const FLY_SHAPES = { bat: 1, ghost: 1, lich: 1, demon: 1, edrone: 1, wyvern: 1 };
 function spawnEnemy(id, x, y, o) {
   const def = SF.ENEMIES[id], st = G.stage, t = G.time / 60;
   const late = Math.max(0, t - 4);
   const ts = def.boss ? Math.min(3, Math.max(1, 1 + (G.level - 12) * 0.05)) : (1 + t * 0.25 + t * t * 0.008 + late * late * 0.2) * (G.frenzy ? 1.3 : 1);
-  const hp = def.hp * (def.boss ? Math.sqrt(st.hpMul) : st.hpMul) * ts;
+  const hp = def.hp * (def.boss ? Math.sqrt(st.hpMul) : st.hpMul) * ts * (G.curseT > 0 && !def.boss ? 1.3 : 1);
   const fz = G.frenzy && !def.boss;
   const e = {
     id: G.nextId++, def, ai: def.ai, x, y, r: def.r, hp, maxHp: hp, spd: def.spd * (0.92 + Math.random() * 0.16) * (fz ? 1.12 : 1),
@@ -173,6 +175,7 @@ function spawnEnemy(id, x, y, o) {
 }
 Core.spawnEnemy = spawnEnemy;
 Core.dropPick = (k, x, y, v) => dropPick(k, x, y, v);
+Core.dropGem = (x, y, v) => dropGem(x, y, v);
 Core.hurtPlayer = d => hurtPlayer(d);
 // 沿屏幕外矩形边缘取点（竖屏上也能较快接敌）
 // 屏幕外矩形边缘上的点（以相机为中心），必须落在地图可走区域内
@@ -232,7 +235,7 @@ function director(dt) {
     const w = G.waveDefs[i];
     if (t < w.t0) continue;
     const k = Math.min(1, (t - w.t0) / Math.max(1, st.bossAt - w.t0));
-    G.acc[i] += (w.r0 + (w.r1 - w.r0) * k) * dt * st.rate * (G.frenzy ? 1.6 : 1);
+    G.acc[i] += (w.r0 + (w.r1 - w.r0) * k) * dt * st.rate * (G.frenzy ? 1.6 : 1) * (G.curseT > 0 ? 1.5 : 1);
     while (G.acc[i] >= 1) {
       G.acc[i] -= 1;
       if (G.enemies.length < CAP_ENEMY) { const [x, y] = ringPos(Math.random() * 50); spawnEnemy(w.e, x, y); }
@@ -256,6 +259,7 @@ function hurt(e, dmg, kx, ky, noText) {
 Core.hurt = hurt;
 // 圆形范围伤害（按武器槽位的命中冷却）
 Core.hitCircle = function (x, y, r, slot, interval, dmg, kb, onHit) {
+  if ((G.frame + slot) % 6 === 0) SF.Map.hitProps(x, y, r, dmg);
   const list = query(x, y, r + 34);
   let n = 0;
   const test = (e) => {
@@ -464,7 +468,7 @@ function updateEnemies(dt) {
     if (d < 0.001) { d = 0.001; dx = 0.001; }
     if (Math.abs(dx) > 3) e.face = dx > 0 ? 1 : -1;
     // 过远则传送回环带，保证密度
-    if (!e.boss && d > 880) { const [x, y] = ringPos(); e.x = x; e.y = y; continue; }
+    if (!e.boss && !e.bounty && d > 880) { const [x, y] = ringPos(); e.x = x; e.y = y; continue; }
     const sp = e.spd * (e.slowT > 0 ? e.slow : 1);
     let vx = 0, vy = 0;
     const ai = e.ai;
@@ -498,6 +502,13 @@ function updateEnemies(dt) {
         e.bt -= dt; vx = e.dx * 330; vy = e.dy * 330;
         if (e.bt <= 0) { e.st = 0; e.cd = U.rand(2.2, 3.6); }
       }
+    } else if (e.flee) {
+      // 赏金目标：远离玩家逃跑
+      let fx = -dx / d, fy = -dy / d;
+      const m = SF.Map.get();
+      if (m) { if (e.x < m.minX + 140) fx += 1; if (e.x > m.maxX - 140) fx -= 1; if (e.y < m.minY + 140) fy += 1; if (e.y > m.maxY - 140) fy -= 1; }
+      const fl = Math.hypot(fx, fy) || 1; vx = fx / fl * sp; vy = fy / fl * sp;
+      if (d < 50 && e.cd <= 0) { e.cd = 0.6; }
     } else { vx = ux * sp; vy = uy * sp; }
 
     // 击退衰减
@@ -564,7 +575,7 @@ function updateEProj(dt) {
     if (b.dead) continue;
     b.life -= dt;
     if (b.life <= 0) { b.dead = true; continue; }
-    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (G.freezeT <= 0) { b.x += b.vx * dt; b.y += b.vy * dt; }
     const dx = b.x - P.x, dy = b.y - P.y, rr = b.r + P.r * 0.8;
     if (dx * dx + dy * dy < rr * rr) { hurtPlayer(b.dmg); b.dead = true; burst(b.x, b.y, b.col, 4, 80, 0.3, 2); }
   }
@@ -572,7 +583,7 @@ function updateEProj(dt) {
 
 /* ------------------------- 更新：拾取物 ------------------------- */
 function addXp(v) {
-  G.xp += v * (1 + G.stats.growth);
+  G.xp += v * (1 + G.stats.growth) * (G.curseT > 0 ? 2 : 1);
   while (G.xp >= G.xpNeed) {
     G.xp -= G.xpNeed; G.level++; G.xpNeed = xpNeed(G.level); G.pending++;
   }
@@ -605,7 +616,7 @@ function updatePickups(dt) {
     if (p.k === 'coin' && d < magR) { p.x += dx / d * 520 * dt; p.y += dy / d * 520 * dt; }
     if (d < P.r + 14) {
       p.dead = true;
-      if (p.k === 'coin') { const v = Math.max(1, Math.round(p.v * (1 + G.stats.greed))); G.gold += v; Audio().sfx('coin'); SF.VFX.sparkle(p.x, p.y, '#ffd24a', 3); popText(P.x, P.y - 26, '+' + v, '#ffd24a'); }
+      if (p.k === 'coin') { const v = Math.max(1, Math.round(p.v * (1 + G.stats.greed) * (G.curseT > 0 ? 2 : 1))); SF.Feat.onCoin(); G.gold += v; Audio().sfx('coin'); SF.VFX.sparkle(p.x, p.y, '#ffd24a', 3); popText(P.x, P.y - 26, '+' + v, '#ffd24a'); }
       else if (p.k === 'heart') healPlayer(Math.round(G.p.maxHp * 0.3));
       else if (p.k === 'magnet') { for (const g of gems) g.mag = true; Audio().sfx('magnet'); UIx().toast('🧲 吸附全屏经验'); }
       else if (p.k === 'bomb') {
@@ -666,7 +677,7 @@ function updateFx(dt) {
         const n = 10;
         for (let k = 0; k < n; k++) shootAt(f.x, f.y, k / n * TAU, 130, f.dmg * 0.35, f.col, 6);
       }
-    } else if (f.k === 'ring' || f.k === 'bolt' || f.k === 'beam' || f.k === 'pillar' || f.k === 'ghost') {
+    } else if (f.k === 'ring' || f.k === 'bolt' || f.k === 'beam' || f.k === 'pillar' || f.k === 'ghost' || f.k === 'laser') {
       f.life -= dt;
       if (f.follow) { f.x = P.x; f.y = P.y; }
       if (f.life <= 0) f.dead = true;
@@ -709,10 +720,13 @@ Game.makeOptions = function (n) {
     if (w.lv < SF.MAX_WLV) pool.push({ type: 'w', id: w.id, lv: w.lv + 1, wt: 1.2 });
     else if (!w.evo && G.passives[SF.WEAPONS[w.id].evo.need] > 0) pool.push({ type: 'evo', id: w.id, lv: w.lv, wt: 5 });
   }
-  if (G.weapons.length < MAX_WEAPONS) for (const id in SF.WEAPONS) if (!G.weapons.some(w => w.id === id)) pool.push({ type: 'wn', id, lv: 1, wt: 0.9 });
+  if (G.weapons.length < MAX_WEAPONS) for (const id of G.wpool) if (!G.weapons.some(w => w.id === id)) pool.push({ type: 'wn', id, lv: 1, wt: 0.9 });
   for (const id in G.passives) if (G.passives[id] < SF.PASSIVES[id].max) pool.push({ type: 'p', id, lv: G.passives[id] + 1, wt: 1 });
   if (passCount < MAX_PASSIVES) for (const id in SF.PASSIVES) if (!(id in G.passives)) pool.push({ type: 'pn', id, lv: 1, wt: 0.8 });
   const out = [];
+  // 可进化时必定出现在选项中（不会因武器池变大而被淹没）
+  const ev = pool.findIndex(o => o.type === 'evo');
+  if (ev >= 0 && n > 0) out.push(pool.splice(ev, 1)[0]);
   while (out.length < n && pool.length) {
     let tot = 0; for (const o of pool) tot += o.wt;
     let r = Math.random() * tot, idx = 0;
@@ -820,6 +834,7 @@ Game.update = function (dt) {
   buildGrid();
   SF.Map.update(dt);
   for (let i = 0; i < G.weapons.length; i++) SF.WL.update(G.weapons[i], dt);
+  SF.WL.world(dt);
   SF.Feat.update(dt);
   updateProj(dt);
   updateEnemies(dt);
@@ -830,6 +845,7 @@ Game.update = function (dt) {
   compact(G.enemies); compact(G.bigs); compact(G.proj); compact(G.eproj);
   compact(G.gems); compact(G.picks); compact(G.fx); compact(G.zones);
   compact(G.parts); compact(G.texts); compact(G.decals);
+  buildGrid(); // 压缩后下标已变化：重建网格，保证下一帧玩家移动（冲刺/战车碾压）查询有效
   // Boss 血条引用
   let b = null;
   for (let i = 0; i < G.bigs.length; i++) if (G.bigs[i].boss && !G.bigs[i].dead) { b = G.bigs[i]; break; }
@@ -858,6 +874,7 @@ function finish(win, quit) {
   if (win) total = Math.round(total * 1.5) + 100 * st.diff;
   d.gold += total; d.totalGold += total; d.kills += G.kills; d.runs++; d.bosses += G.bossKills; d.playTime += t;
   d.bestLv = Math.max(d.bestLv, G.level);
+  d.maxWeapons = Math.max(d.maxWeapons || 0, G.weapons.length);
   d.best[st.id] = Math.max(d.best[st.id] || 0, Math.floor(t));
   let unlocked = null;
   if (win) {

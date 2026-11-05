@@ -9,6 +9,7 @@ const L = () => SF.Sprites.lib;
 const FRAME = {
   w: ['#4a3478', '#1c1434', '#9a86ff'],
   a: ['#7a2a3a', '#2a0c14', '#ff8a9a'],
+  i: ['#1e4a6a', '#0c1c2e', '#6ad0ff'],
   k: ['#4a4a2a', '#1c1c0e', '#d8c86a'],
   e: ['#7a4a10', '#2e1806', '#ffd24a'],
   p: ['#1e5a50', '#0c2622', '#62e0b8'],
@@ -231,9 +232,85 @@ const GL = {
     for (let i = 0; i < 3; i++) { line(g, [-14, -12 + i * 13, -9, -7 + i * 13, -2, -17 + i * 13], 3, '#3ab05a'); line(g, [3, -12 + i * 13, 15, -12 + i * 13], 2.5, '#a8865a'); }
   },
   chest(g) { g.drawImage(SF.Sprites.pickup('chest'), -40, -40, 80, 80); }
+,
+  gatling(g, evo) {
+    const { part, limb, polyPath } = L();
+    g.rotate(-0.5);
+    limb(g, [-24, 6, 20, 6], 7, '#8a5a30', 2);
+    g.beginPath(); g.arc(-6, 6, 26, -1.0, 1.0); g.lineWidth = 9; g.strokeStyle = 'rgba(20,14,30,.9)'; g.stroke(); g.lineWidth = 5; g.strokeStyle = '#c89a5a'; g.stroke();
+    for (let i = -1; i <= 1; i++) { L().line(g, [-10, 6 + i * 7, 30, 6 + i * 7], 2.5, evo ? '#7affd0' : '#ffe08a'); polyPath(g, [30, 2 + i * 7, 38, 6 + i * 7, 30, 10 + i * 7]); g.fillStyle = '#e8eef8'; g.fill(); }
+    part(g, () => { g.beginPath(); g.roundRect(-30, 0, 10, 14, 3); }, '#5a3018', -25, 7, 6, { lw: 1.6 });
+  },
+  ricochet(g, evo) {
+    g.drawImage(SF.Sprites.disc(evo), -30, -30, 60, 60);
+    g.strokeStyle = evo ? 'rgba(255,154,240,.8)' : 'rgba(159,255,224,.8)'; g.lineWidth = 3; g.setLineDash([6, 6]);
+    g.beginPath(); g.moveTo(-34, 30); g.lineTo(-10, 8); g.moveTo(10, -8); g.lineTo(34, 24); g.stroke(); g.setLineDash([]);
+  },
+  aura(g, evo) {
+    const col = evo ? '#ffe08a' : '#fff3a0';
+    g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(SF.Sprites.glow(col), -36, -36, 72, 72); g.drawImage(SF.Sprites.ring(col), -34, -34, 68, 68); g.restore();
+    g.drawImage(SF.Sprites.rune(evo ? '#ffb43a' : '#ffe08a'), -30, -30, 60, 60);
+    L().circ(g, 0, 0, 7, '#ffffff');
+  },
+  drone(g, evo) {
+    g.drawImage(SF.Sprites.drone(evo), -34, -30, 68, 52);
+    if (evo) g.drawImage(SF.Sprites.drone(evo), -6, 2, 40, 30);
+    g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = evo ? '#ff7ad8' : '#7affff'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 0); g.lineTo(26, 30); g.stroke(); g.restore();
+  },
+  mine(g, evo) {
+    g.drawImage(SF.Sprites.mine(), -30, -20, 60, 50);
+    if (evo) { g.drawImage(SF.Sprites.mine(), -36, -36, 30, 25); g.drawImage(SF.Sprites.mine(), 8, -36, 30, 25); }
+    L().glowEye(g, 0, -2, 3, '#ff3a3a');
+  },
+  vortex(g, evo) {
+    const col = evo ? '#ff7ad8' : '#b07aff';
+    g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(SF.Sprites.glow(col), -34, -34, 68, 68); g.restore();
+    g.strokeStyle = col; g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) { g.lineWidth = 4 - i * 0.6; g.beginPath(); g.arc(0, 0, 8 + i * 7, i * 1.6, i * 1.6 + 4); g.stroke(); }
+    L().circ(g, 0, 0, 6, evo ? '#000000' : '#1a0830');
+  },
+  summon(g, evo) {
+    const spr = SF.Sprites.enemy(evo ? SF.Sprites.PET_EVO : SF.Sprites.PET), f = SF.Sprites.frame(spr, 0, 'n');
+    g.drawImage(f, -38, -40, 76, 76);
+  }
+,
+  potion(g) {
+    const { part, circ } = L();
+    part(g, () => { g.beginPath(); g.arc(0, 8, 22, 0, TAU); }, '#ffd0d8', 0, 8, 22, { lw: 3, hl: 0.7 });
+    g.save(); g.beginPath(); g.arc(0, 8, 19, 0, TAU); g.clip(); const gr = g.createLinearGradient(0, 0, 0, 28); gr.addColorStop(0, '#ff6a8a'); gr.addColorStop(1, '#c81a3a'); g.fillStyle = gr; g.fillRect(-22, 2, 44, 30); g.restore();
+    part(g, () => { g.beginPath(); g.rect(-7, -22, 14, 14); }, '#ffd0d8', 0, -15, 9, { lw: 2.5 });
+    part(g, () => { g.beginPath(); g.roundRect(-9, -30, 18, 9, 2); }, '#8a5a30', 0, -26, 9, { lw: 2.5 });
+    g.fillStyle = '#ffffff'; g.fillRect(-2.5, 4, 5, 14); g.fillRect(-7, 8.5, 14, 5);
+    circ(g, -8, 0, 3, 'rgba(255,255,255,.7)');
+  },
+  bombi(g) { g.drawImage(SF.Sprites.pickup('bomb'), -42, -40, 84, 84); },
+  blink(g) {
+    g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(SF.Sprites.glow('#c890ff'), -34, -34, 68, 68); g.restore();
+    for (const [x, a] of [[-14, 0.35], [2, 0.65], [16, 1]]) { g.globalAlpha = a; L().polyPath(g, [x - 8, -18, x + 6, -2, x - 2, -2, x + 8, 18, x - 8, 0, x, 0]); g.fillStyle = '#e8d0ff'; g.fill(); }
+    g.globalAlpha = 1;
+  },
+  freeze(g) {
+    const { part, line, circ } = L();
+    part(g, () => { g.beginPath(); g.arc(0, 2, 26, 0, TAU); }, '#bfeaff', 0, 2, 26, { lw: 3, hl: 0.6 });
+    circ(g, 0, 2, 20, '#e8f8ff');
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; line(g, [Math.cos(a) * 16, 2 + Math.sin(a) * 16, Math.cos(a) * 19, 2 + Math.sin(a) * 19], 2, '#5a8ab0'); }
+    line(g, [0, 2, 0, -12], 3.5, '#2a4a6a'); line(g, [0, 2, 10, 8], 3, '#2a4a6a');
+    for (const [x, y] of [[-24, -20], [24, -18], [22, 24]]) g.drawImage(SF.Sprites.star('#bff0ff'), x - 8, y - 8, 16, 16);
+  },
+  berserk(g) {
+    const { part } = L();
+    g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(SF.Sprites.glow('#ff3a2a'), -34, -34, 68, 68); g.restore();
+    part(g, () => { g.beginPath(); g.moveTo(-10, -26); g.lineTo(10, -26); g.lineTo(10, -14); g.lineTo(20, 10); g.quadraticCurveTo(20, 28, 0, 28); g.quadraticCurveTo(-20, 28, -20, 10); g.lineTo(-10, -14); g.closePath(); }, '#ff4a2a', 0, 4, 22, { lw: 3, hl: 0.5 });
+    L().line(g, [-8, 4, -2, 12, 4, 0, 10, 10], 3, '#ffe08a');
+  }
+,
+  crate(g) { g.drawImage(SF.Sprites.mobj('crate'), -36, -38, 72, 72); },
+  barrel(g) { g.drawImage(SF.Sprites.mobj('barrel'), -36, -38, 72, 72); g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(SF.Sprites.glow('#ff8a2a'), 0, -40, 40, 40); g.restore(); },
+  obelisk(g) { g.drawImage(SF.Sprites.mobj('obelisk'), -30, -48, 60, 84); }
 };
 const PASS_GL = { might: 'ring', cd: 'hourglass', area: 'scroll', move: 'boot', hp: 'heart', regen: 'leaf', armor: 'shield', magnet: 'magnet', growth: 'book', amount: 'mirror', luck: 'clover', greed: 'coins' };
-const META_GL = { dashm: 'dash', ultm: 'ult', mapwm: 'cannon', might: 'sword', hp: 'heart', armor: 'shield', move: 'boot', regen: 'leaf', growth: 'book', greed: 'coins', magnet: 'magnet', cd: 'hourglass', luck: 'clover', revive: 'feather', reroll: 'dice', skip: 'skip' };
+const ITEM_GL = { potion: 'potion', bomb: 'bombi', magnet: 'magnet', blink: 'blink', shield: 'shield', turret: 'cannon', freeze: 'freeze', berserk: 'berserk' };
+const META_GL = { belt: 'chest', dashm: 'dash', ultm: 'ult', mapwm: 'cannon', might: 'sword', hp: 'heart', armor: 'shield', move: 'boot', regen: 'leaf', growth: 'book', greed: 'coins', magnet: 'magnet', cd: 'hourglass', luck: 'clover', revive: 'feather', reroll: 'dice', skip: 'skip' };
 
 function frame(g, cat) {
   const { mk } = L();
@@ -253,6 +330,7 @@ function make(key) {
   if (cat === 'w' || cat === 'e') { evo = cat === 'e'; }
   else if (cat === 'p') glyph = PASS_GL[id];
   else if (cat === 'm') glyph = META_GL[id];
+  else if (cat === 'i') glyph = ITEM_GL[id];
   if (cat === 's') {
     frame(g, 's');
     g.save(); g.beginPath(); g.roundRect(8, 8, 80, 80, 16); g.clip();

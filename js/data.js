@@ -117,6 +117,77 @@ SF.WEAPONS = {
       { t: '光束 +1，宽度 +10', d: { amount: 1, width: 10 } }
     ]
   }
+,
+  gatling: {
+    name: '连射弩', icon: '🏹', col: '#ffcf6a', desc: '沿移动方向高速连射（静止时瞄准最近敌人）',
+    evo: { need: 'amount', name: '暴风连弩', icon: '🌀', desc: '弩箭数量翻倍，穿透一切' },
+    base: { dmg: 5, cd: 0.16, amount: 1, pierce: 0, speed: 540 },
+    lv: [
+      { t: '伤害 +2', d: { dmg: 2 } }, { t: '弩箭 +1', d: { amount: 1 } }, { t: '射速提升', d: { cd: -0.03 } },
+      { t: '穿透 +1', d: { pierce: 1 } }, { t: '弩箭 +1', d: { amount: 1 } }, { t: '伤害 +3', d: { dmg: 3 } },
+      { t: '弩箭 +1，射速提升', d: { amount: 1, cd: -0.02 } }
+    ]
+  },
+  ricochet: {
+    name: '弹射刃', icon: '💿', col: '#9fffe0', desc: '飞刃命中后在敌人之间连续弹射',
+    evo: { need: 'luck', name: '千刃风暴', icon: '🌪', desc: '飞刃更多，弹射次数大增' },
+    base: { dmg: 14, cd: 1.4, amount: 1, bounce: 3, speed: 460 },
+    lv: [
+      { t: '弹射 +1', d: { bounce: 1 } }, { t: '伤害 +5', d: { dmg: 5 } }, { t: '飞刃 +1', d: { amount: 1 } },
+      { t: '弹射 +2', d: { bounce: 2 } }, { t: '冷却 -0.25秒', d: { cd: -0.25 } }, { t: '伤害 +8', d: { dmg: 8 } },
+      { t: '飞刃 +1，弹射 +2', d: { amount: 1, bounce: 2 } }
+    ]
+  },
+  aura: {
+    name: '圣光领域', icon: '☀️', col: '#fff3a0', desc: '在身边形成持续灼烧敌人的光环',
+    evo: { need: 'regen', name: '神圣审判场', icon: '🔆', desc: '光环更大更强，并持续治疗自身' },
+    base: { dmg: 4, cd: 0.5, radius: 70, kb: 60 },
+    lv: [
+      { t: '范围 +12', d: { radius: 12 } }, { t: '伤害 +2', d: { dmg: 2 } }, { t: '伤害频率提升', d: { cd: -0.06 } },
+      { t: '范围 +14', d: { radius: 14 } }, { t: '伤害 +3', d: { dmg: 3 } }, { t: '范围 +14', d: { radius: 14 } },
+      { t: '伤害 +4，频率提升', d: { dmg: 4, cd: -0.06 } }
+    ]
+  },
+  drone: {
+    name: '机械无人机', icon: '🛸', col: '#7affff', desc: '无人机伴随左右，用激光点射敌人',
+    evo: { need: 'magnet', name: '蜂群核心', icon: '🛰', desc: '无人机数量与射速大幅提升' },
+    base: { dmg: 7, cd: 0.7, amount: 1, range: 300 },
+    lv: [
+      { t: '伤害 +3', d: { dmg: 3 } }, { t: '无人机 +1', d: { amount: 1 } }, { t: '射速提升', d: { cd: -0.12 } },
+      { t: '射程 +60', d: { range: 60 } }, { t: '无人机 +1', d: { amount: 1 } }, { t: '伤害 +5', d: { dmg: 5 } },
+      { t: '无人机 +1，射速提升', d: { amount: 1, cd: -0.1 } }
+    ]
+  },
+  mine: {
+    name: '地雷陷阱', icon: '💣', col: '#ff8a5a', desc: '沿途布下地雷，敌人踩中即爆炸',
+    evo: { need: 'armor', name: '集束地雷', icon: '🧨', desc: '爆炸后再分裂出多枚子雷' },
+    base: { dmg: 32, cd: 1.6, amount: 1, radius: 60, max: 8 },
+    lv: [
+      { t: '伤害 +10', d: { dmg: 10 } }, { t: '每次布雷 +1', d: { amount: 1 } }, { t: '爆炸范围 +12', d: { radius: 12 } },
+      { t: '冷却 -0.3秒', d: { cd: -0.3 } }, { t: '每次布雷 +1', d: { amount: 1, max: 4 } }, { t: '伤害 +16', d: { dmg: 16 } },
+      { t: '范围 +15，布雷 +1', d: { radius: 15, amount: 1, max: 4 } }
+    ]
+  },
+  vortex: {
+    name: '虚空漩涡', icon: '🌀', col: '#b07aff', desc: '制造漩涡吸住敌群并持续伤害',
+    evo: { need: 'area', name: '黑洞', icon: '⚫', desc: '吸力与范围暴增，持续更久' },
+    base: { dmg: 6, cd: 5, radius: 90, dur: 3, pull: 160 },
+    lv: [
+      { t: '范围 +15', d: { radius: 15 } }, { t: '伤害 +3', d: { dmg: 3 } }, { t: '持续 +1秒', d: { dur: 1 } },
+      { t: '冷却 -0.8秒', d: { cd: -0.8 } }, { t: '范围 +20', d: { radius: 20 } }, { t: '伤害 +5', d: { dmg: 5 } },
+      { t: '吸力 +80，范围 +20', d: { pull: 80, radius: 20 } }
+    ]
+  },
+  summon: {
+    name: '石像守卫', icon: '🗿', col: '#c8b28a', desc: '召唤石像守卫追击敌人，重拳砸地',
+    evo: { need: 'hp', name: '泰坦守护者', icon: '🗿', desc: '守卫化身泰坦，体型与威力倍增' },
+    base: { dmg: 24, cd: 1.1, amount: 1, size: 1 },
+    lv: [
+      { t: '伤害 +8', d: { dmg: 8 } }, { t: '体型变大', d: { size: 0.15 } }, { t: '攻击加快', d: { cd: -0.15 } },
+      { t: '守卫 +1', d: { amount: 1 } }, { t: '伤害 +12', d: { dmg: 12 } }, { t: '体型变大', d: { size: 0.2 } },
+      { t: '伤害 +16，攻击加快', d: { dmg: 16, cd: -0.15 } }
+    ]
+  }
 };
 SF.weaponStats = function (id, lv, evo) {
   const W = SF.WEAPONS[id];
@@ -131,6 +202,11 @@ SF.weaponStats = function (id, lv, evo) {
     if (s.pierce !== undefined) s.pierce += 2;
     if (s.chain !== undefined) s.chain += 2;
     if (s.dur) s.dur *= 1.3;
+    if (id === 'gatling') { s.amount = s.amount * 2; s.pierce += 98; }
+    if (s.bounce !== undefined) s.bounce += 4;
+    if (id === 'drone') s.amount += 1;
+    if (s.max) s.max += 4;
+    if (s.pull) s.pull *= 1.6;
   }
   return s;
 };
@@ -175,6 +251,7 @@ SF.META = {
   skip:   { name: '果断放弃', icon: '⏭️', key: 'skip',   per: 1, max: 3, base: 150, txt: '每局跳过 +1 次' },
   dashm:  { name: '冲刺精通', icon: '💨', key: 'dashm',  per: 1, max: 5, base: 120, txt: '冲刺冷却 -8%，伤害 +15%' },
   ultm:   { name: '星陨之力', icon: '☄️', key: 'ultm',   per: 1, max: 5, base: 180, txt: '大招冷却 -6%，伤害 +20%' },
+  belt:   { name: '道具腰带', icon: '🎒', key: 'belt',   per: 1, max: 1, base: 600, txt: '解锁第二个道具栏' },
   mapwm:  { name: '机械专精', icon: '🛠️', key: 'mapwm',  per: 1, max: 5, base: 100, txt: '地图武器持续时间 +20%' }
 };
 SF.metaCost = (id, lv) => Math.round(SF.META[id].base * Math.pow(1.7, lv) / 5) * 5;
@@ -253,6 +330,31 @@ def('hound', 'charger', '地狱犬', '#3a2222', '#ff4a2a', X({}, CHRG, { hp: 90 
 def('lbomb', 'bomber', '爆炎虫', '#ff6a2a', '#fff0a0', BOMB);
 def('lorc', 'orc', '熔岩兽人', '#a03a2a', '#ffd24a', X({}, ORC, { hp: 180 }));
 
+// 幽暗沼泽
+def('bogslime', 'slime', '腐沼史莱姆', '#6a7a3a', '#d8f08a', X({}, SLIME, { hp: 16, r: 13 }));
+def('mosquito', 'bat', '巨蚊', '#8aa03a', '#ff5a3a', BAT);
+def('drowned', 'skeleton', '溺亡者', '#7a9a7a', '#6affb0', X({}, SKEL, { hp: 32 }));
+def('sporebug', 'bomber', '孢子虫', '#a85ac8', '#ffd24a', BOMB);
+def('bogwitch', 'mage', '沼泽女巫', '#3a5a2a', '#b0ff5a', MAGE);
+def('bogtroll', 'orc', '沼泽巨魔', '#4a6a4a', '#ffb04a', X({}, ORC, { hp: 150, r: 20 }));
+def('croc', 'charger', '鳄鱼兽', '#3a6a3a', '#e8e0b0', X({}, CHRG, { hp: 85 }));
+// 机械废都
+def('robot', 'robot', '巡逻机器人', '#8a94a8', '#4affff', { r: 12, hp: 22, spd: 60, dmg: 7, xp: 1 });
+def('edrone', 'edrone', '攻击无人机', '#5a6478', '#ff3a4a', { r: 10, hp: 10, spd: 96, dmg: 5, xp: 1, ai: 'sine' });
+def('sentry', 'robot', '哨戒机兵', '#a8743a', '#ffd24a', X({}, ARCH, { r: 12, hp: 30 }));
+def('bombbot', 'bomber', '自爆机械虫', '#7a7a8a', '#ff6a2a', BOMB);
+def('mhound', 'charger', '机械猎犬', '#6a7080', '#ff3a3a', X({}, CHRG, { hp: 95 }));
+def('heavy', 'golem', '重装机甲', '#5a5e6a', '#4affff', X({}, GOLEM, { hp: 360 }));
+def('scav', 'archer', '废土拾荒者', '#5a4a6a', '#ff7ad8', ARCH);
+// 天空浮岛
+def('wisp', 'ghost', '云灵', '#cfe8ff', '#ffd86a', X({}, GHOST, { hp: 30 }));
+def('harpy', 'bat', '鹰身女妖', '#d8a0ff', '#ffe08a', X({}, BAT, { hp: 8, r: 10 }));
+def('skyknight', 'skeleton', '天空卫士', '#f0e0a0', '#4ab8ff', X({}, SKEL, { hp: 48, r: 14 }));
+def('stormmage', 'mage', '风暴术士', '#4a6ad8', '#bff0ff', MAGE);
+def('griffin', 'charger', '狮鹫', '#d8b070', '#ffffff', X({}, CHRG, { hp: 100 }));
+def('mgolem2', 'golem', '大理石魔像', '#e8e4dc', '#6ad0ff', X({}, GOLEM, { hp: 420 }));
+def('skyarcher', 'archer', '云端射手', '#5a8ad8', '#ffe08a', ARCH);
+
 // Boss：pat 为循环释放的招式
 function boss(id, shape, name, c1, c2, o) {
   E[id] = Object.assign({ id, shape, name, c1, c2, boss: true, ai: 'boss', xp: 0, cd: 2.4, minion: 'slime' }, o);
@@ -273,6 +375,19 @@ boss('mid4', 'charger', '熔岩野猪王', '#7a2a1a', '#ffb04a',
   { r: 44, hp: 7000, spd: 60, dmg: 32, cd: 2.2, pat: ['dash', 'ring', 'slam'], minion: 'lbomb' });
 boss('boss4', 'demon', '炎魔领主', '#b81e2a', '#ffd24a',
   { r: 64, hp: 18000, spd: 50, dmg: 36, cd: 1.9, pat: ['slam', 'ring', 'spiral', 'dash', 'aim', 'summon'], minion: 'imp' });
+
+boss('mid5', 'orc', '沼泽巨魔·苔牙', '#4a6a3a', '#d8ff6a',
+  { r: 40, hp: 4800, spd: 52, dmg: 26, cd: 2.4, pat: ['dash', 'slam', 'summon'], minion: 'bogslime' });
+boss('boss5', 'treant', '腐朽古树', '#6a4a2a', '#8aff5a',
+  { r: 64, hp: 11000, spd: 38, dmg: 30, cd: 2.2, pat: ['summon', 'ring', 'slam', 'aim', 'spiral'], minion: 'sporebug' });
+boss('mid6', 'golem', '装甲巨像', '#6a7080', '#4affff',
+  { r: 44, hp: 6200, spd: 46, dmg: 30, cd: 2.2, pat: ['slam', 'aim', 'dash'], minion: 'robot' });
+boss('boss6', 'mech', '钢铁巨神', '#7a8494', '#ff4a3a',
+  { r: 62, hp: 13500, spd: 46, dmg: 34, cd: 1.9, pat: ['aim', 'spiral', 'ring', 'dash', 'slam', 'summon'], minion: 'edrone' });
+boss('mid7', 'lich', '风暴先知', '#4a5ad8', '#bff8ff',
+  { r: 42, hp: 8000, spd: 54, dmg: 30, cd: 2.0, pat: ['spiral', 'ring', 'summon', 'aim'], minion: 'wisp' });
+boss('boss7', 'wyvern', '雷霆巨龙', '#3a4aa8', '#ffe84a',
+  { r: 66, hp: 22000, spd: 56, dmg: 40, cd: 1.8, pat: ['ring', 'spiral', 'dash', 'aim', 'slam', 'summon'], minion: 'harpy' });
 
 /* =====================================================================
  * 关卡
@@ -355,7 +470,60 @@ SF.STAGES = {
     ]
   })
 };
-SF.STAGE_ORDER = ['meadow', 'desert', 'frost', 'lava'];
+Object.assign(SF.STAGES, {
+  swamp: mk({
+    id: 'swamp', name: '幽暗沼泽', icon: '🍄', desc: '迷雾笼罩的腐沼，腐朽古树在此苏醒。',
+    bossAt: 540, hpMul: 1.4, dmgMul: 1.25, xpMul: 1.7, goldMul: 2.0, diff: 2, rate: 0.78,
+    ground: ['#2e3c27', '#24301f', '#3a4a2e'], deco: 'swamp', music: 1,
+    waves(w) {
+      return [
+        w('bogslime', 0, 1.0, 3.0), w('mosquito', 15, 0.25, 1.6), w('drowned', 50, 0.2, 1.6),
+        w('sporebug', 110, 0.1, 0.7), w('bogwitch', 150, 0.08, 0.5), w('bogtroll', 210, 0.06, 0.5), w('croc', 260, 0.06, 0.45)
+      ];
+    },
+    events: [
+      { t: 25, k: 'swarm', e: 'mosquito', n: 18 }, { t: 90, k: 'ring', e: 'bogslime', n: 26 },
+      { t: 150, k: 'elite', e: 'bogtroll' }, { t: 270, k: 'boss', e: 'mid5' },
+      { t: 330, k: 'swarm', e: 'sporebug', n: 24 }, { t: 400, k: 'ring', e: 'drowned', n: 30 },
+      { t: 460, k: 'elite', e: 'bogtroll' }, { t: 540, k: 'boss', e: 'boss5', final: true }
+    ]
+  }),
+  city: mk({
+    id: 'city', name: '机械废都', icon: '🏙️', desc: '霓虹闪烁的废弃都市，钢铁巨神在街头巡游。',
+    bossAt: 570, hpMul: 1.65, dmgMul: 1.45, xpMul: 2.2, goldMul: 2.9, diff: 3, rate: 0.72,
+    ground: ['#3c3e48', '#32343e', '#474a54'], deco: 'city', music: 2,
+    waves(w) {
+      return [
+        w('robot', 0, 1.0, 2.8), w('edrone', 15, 0.25, 1.5), w('scav', 60, 0.12, 0.6),
+        w('bombbot', 100, 0.12, 0.8), w('mhound', 150, 0.08, 0.55), w('sentry', 200, 0.08, 0.5), w('heavy', 260, 0.04, 0.3)
+      ];
+    },
+    events: [
+      { t: 25, k: 'swarm', e: 'edrone', n: 20 }, { t: 90, k: 'ring', e: 'robot', n: 28 },
+      { t: 150, k: 'elite', e: 'heavy' }, { t: 285, k: 'boss', e: 'mid6' },
+      { t: 345, k: 'swarm', e: 'bombbot', n: 26 }, { t: 420, k: 'ring', e: 'robot', n: 34 },
+      { t: 480, k: 'elite', e: 'heavy' }, { t: 570, k: 'boss', e: 'boss6', final: true }
+    ]
+  }),
+  sky: mk({
+    id: 'sky', name: '天空浮岛', icon: '☁️', desc: '云端之上的古老浮岛，雷霆巨龙盘旋不去。终极试炼。',
+    bossAt: 620, hpMul: 2.3, dmgMul: 1.85, xpMul: 2.6, goldMul: 4.5, diff: 5, rate: 0.7,
+    ground: ['#86b866', '#76a85a', '#9cc87a'], deco: 'sky', music: 3,
+    waves(w) {
+      return [
+        w('wisp', 0, 0.9, 2.4), w('skyknight', 20, 0.3, 1.8), w('harpy', 40, 0.25, 1.5),
+        w('skyarcher', 100, 0.1, 0.6), w('stormmage', 150, 0.08, 0.5), w('griffin', 200, 0.08, 0.55), w('mgolem2', 280, 0.04, 0.3)
+      ];
+    },
+    events: [
+      { t: 25, k: 'swarm', e: 'harpy', n: 20 }, { t: 90, k: 'ring', e: 'skyknight', n: 30 },
+      { t: 150, k: 'elite', e: 'griffin' }, { t: 310, k: 'boss', e: 'mid7' },
+      { t: 360, k: 'swarm', e: 'wisp', n: 30 }, { t: 440, k: 'ring', e: 'skyknight', n: 36 },
+      { t: 500, k: 'elite', e: 'mgolem2' }, { t: 620, k: 'boss', e: 'boss7', final: true }
+    ]
+  })
+});
+SF.STAGE_ORDER = ['meadow', 'desert', 'swamp', 'frost', 'city', 'lava', 'sky'];
 
 /* =====================================================================
  * 成就
@@ -368,10 +536,14 @@ SF.ACHS = [
   { id: 's420',   name: '身经百战', desc: '单局存活 7 分钟', gold: 200, chk: d => d.bestTime >= 420 },
   { id: 'lv15',   name: '渐入佳境', desc: '单局达到 15 级', gold: 80,  chk: d => d.bestLv >= 15 },
   { id: 'lv30',   name: '登峰造极', desc: '单局达到 30 级', gold: 300, chk: d => d.bestLv >= 30 },
-  { id: 'win1',   name: '草原之王', desc: '通关翡翠草原', gold: 200, chk: d => d.stages.includes('desert') },
-  { id: 'win2',   name: '沙漠征服者', desc: '通关赤沙遗迹', gold: 350, chk: d => d.stages.includes('frost') },
-  { id: 'win3',   name: '霜之终结', desc: '通关霜冻荒原', gold: 500, chk: d => d.stages.includes('lava') },
-  { id: 'win4',   name: '星陨传说', desc: '通关熔岩深渊', gold: 1000, chk: d => !!d.best.lava_win },
+  { id: 'win1',   name: '草原之王', desc: '通关翡翠草原', gold: 200, chk: d => !!d.best.meadow_win },
+  { id: 'win2',   name: '沙漠征服者', desc: '通关赤沙遗迹', gold: 350, chk: d => !!d.best.desert_win },
+  { id: 'win5',   name: '沼泽净化者', desc: '通关幽暗沼泽', gold: 400, chk: d => !!d.best.swamp_win },
+  { id: 'win3',   name: '霜之终结', desc: '通关霜冻荒原', gold: 500, chk: d => !!d.best.frost_win },
+  { id: 'win6',   name: '废都终结者', desc: '通关机械废都', gold: 700, chk: d => !!d.best.city_win },
+  { id: 'win4',   name: '熔岩征服者', desc: '通关熔岩深渊', gold: 1000, chk: d => !!d.best.lava_win },
+  { id: 'win7',   name: '星陨传说', desc: '通关天空浮岛', gold: 2000, chk: d => !!d.best.sky_win },
+  { id: 'w15',    name: '武器大师', desc: '单局集齐 6 把武器', gold: 200, chk: d => (d.maxWeapons || 0) >= 6 },
   { id: 'boss5',  name: '猎头者',   desc: '累计击败 5 个 Boss', gold: 150, chk: d => d.bosses >= 5 },
   { id: 'rich',   name: '腰缠万贯', desc: '累计获得 5000 金币', gold: 300, chk: d => d.totalGold >= 5000 },
   { id: 'chars',  name: '群英荟萃', desc: '解锁全部角色', gold: 500, chk: d => d.chars.length >= Object.keys(SF.CHARS).length }

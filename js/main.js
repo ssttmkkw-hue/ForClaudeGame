@@ -5,6 +5,8 @@ const G = SF.G;
 
 function boot() {
   SF.Save.load();
+  { const d = SF.Save.data, ord = SF.STAGE_ORDER; let last = 0; ord.forEach((id, i) => { if (d.stages.includes(id) || d.best[id + '_win']) last = Math.max(last, i + (d.best[id + '_win'] ? 1 : 0)); });
+    for (let i = 0; i <= Math.min(last, ord.length - 1); i++) if (!d.stages.includes(ord[i])) d.stages.push(ord[i]); }
   const s = SF.Save.data.set;
   SF.Audio.set(s.sound, s.music);
   SF.Render.init(document.getElementById('cv'));

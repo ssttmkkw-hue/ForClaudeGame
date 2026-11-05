@@ -36,7 +36,8 @@ UI.init = function () {
   hud.bUlt = bind('btn-ult', () => SF.Feat.ult(), 'a:ult');
   hud.bMount = bind('btn-mount', () => SF.Feat.toggleMount());
   hud.bMountImg = hud.bMount.querySelector('img'); hud.bMountTx = hud.bMount.querySelector('span');
-  for (const b of [hud.bDash, hud.bUlt]) { b._cd = b.querySelector('.cd'); b._em = b.querySelector('em'); }
+  hud.bI = [bind('btn-i0', () => SF.Feat.useItem(0)), bind('btn-i1', () => SF.Feat.useItem(1))];
+  for (const b of [hud.bDash, hud.bUlt].concat(hud.bI)) { b._cd = b.querySelector('.cd'); b._em = b.querySelector('em'); }
 };
 
 function stars() {
@@ -74,7 +75,7 @@ const VIEWS = {
       const s = SF.STAGES[id], ok = d.stages.includes(id), best = d.best[id] ? U.fmtTime(d.best[id]) : '--:--';
       const win = d.best[id + '_win'] ? ' ✔' : '';
       h += `<button class="card stage-card ${d.sel.stage === id && ok ? 'sel' : ''} ${ok ? '' : 'lock'}" data-act="stage" data-id="${id}">
-        <div class="top"><div class="ic">${ok ? I('s:' + id) : '🔒'}</div><div class="nm">${s.name}<div class="st">${'★'.repeat(s.diff)}${'☆'.repeat(4 - s.diff)}</div></div></div>
+        <div class="top"><div class="ic">${ok ? I('s:' + id) : '🔒'}</div><div class="nm">${s.name}<div class="st">${'★'.repeat(s.diff)}${'☆'.repeat(5 - s.diff)}</div></div></div>
         <div class="ds meta">${ok ? '最长 ' + best + win + ' · 金币×' + s.goldMul : '🔒 通关上一关解锁'}</div></button>`;
     }
     h += `</div><div class="stage-desc">${SF.STAGES[d.sel.stage].desc}</div><div>`;
@@ -88,14 +89,34 @@ const VIEWS = {
     const c = SF.CHARS[focusChar], own = d.chars.includes(focusChar), W = SF.WEAPONS[c.start];
     h += `<div class="detail"><div class="t">${c.name} · ${c.title}</div>
       <div class="s"><span class="wpn">${SF.Icons.weapon(c.start)}<span>初始武器：<b>${W.name}</b> — ${W.desc}<br>天赋：${c.perk}</span></span></div></div>`;
+    const slots = 1 + (d.meta.belt || 0), eq = (d.equip || []).slice(0, slots);
+    h += `<div class="sec-t">携带道具（${eq.filter(Boolean).length}/${slots}）${slots < 2 ? '　<span style="font-size:11px;letter-spacing:0">商店购买「道具腰带」解锁第 2 格</span>' : ''}</div><div class="itemrow">`;
+    for (const id in SF.ITEMS) {
+      const lv = (d.items || {})[id] || 0;
+      if (!lv) continue;
+      h += `<button class="ichip ${eq.includes(id) ? 'on' : ''}" data-act="equip" data-id="${id}">${I('i:' + id)}<span>${SF.ITEMS[id].name}</span><em>Lv${lv}</em></button>`;
+    }
+    h += `</div>`;
     h += `<div class="startbar">`;
     if (own) h += `<button class="btn gold" data-act="start">▶ 开始战斗</button>`;
     else h += `<button class="btn ${d.gold >= c.cost ? 'gold' : 'sec dis'}" data-act="buyChar">🔓 解锁 ${c.name}　${COIN()}${c.cost}</button>`;
     return h + '</div></div>';
   },
   shop() {
-    const d = Save.data;
-    let h = `<div class="screen">${bar('强化商店')}<div class="list">`;
+    const d = Save.data, tab = UI.stab || 'meta';
+    let h = `<div class="screen">${bar('强化商店')}
+      <div class="tabs"><button class="${tab === 'meta' ? 'on' : ''}" data-act="stab" data-v="meta">永久强化</button><button class="${tab === 'item' ? 'on' : ''}" data-act="stab" data-v="item">主动道具</button></div><div class="list">`;
+    if (tab === 'item') {
+      h += `<div class="ds" style="text-align:center;color:var(--dim);font-size:12px">解锁后可在出征前携带，战斗中点击右下角按钮使用（键盘 1 / 2）</div>`;
+      for (const id in SF.ITEMS) {
+        const it = SF.ITEMS[id], lv = (d.items || {})[id] || 0, max = lv >= SF.ITEM_MAX;
+        const cost = lv === 0 ? it.cost : max ? 0 : SF.itemUpCost(id, lv);
+        h += `<div class="card"><div class="ic${lv ? '' : ' off'}">${I('i:' + id)}</div><div class="bd"><div class="nm">${it.name} <span style="color:var(--dim);font-size:12px">${lv ? 'Lv.' + lv + '/' + SF.ITEM_MAX : '未解锁'} · 冷却 ${it.cd}秒</span></div>
+          <div class="ds">${it.desc}${lv && !max ? '<br>升级：' + it.up : ''}</div>${pips(lv, SF.ITEM_MAX)}</div>
+          <button class="btn sm ${max ? 'sec dis' : d.gold >= cost ? 'gold' : 'sec dis'}" style="min-width:76px" data-act="buyItem" data-id="${id}">${max ? '已满' : (lv ? '' : '解锁 ') + COIN() + cost}</button></div>`;
+      }
+      return h + '</div></div>';
+    }
     for (const id in SF.META) {
       const m = SF.META[id], lv = d.meta[id] || 0, max = lv >= m.max, cost = max ? 0 : SF.metaCost(id, lv);
       h += `<div class="card"><div class="ic">${I('m:' + id)}</div><div class="bd"><div class="nm">${m.name} <span style="color:var(--dim);font-size:12px">Lv.${lv}/${m.max}</span></div>
@@ -168,6 +189,7 @@ function show(name) {
   scr.innerHTML = VIEWS[name]();
   if (old && (name === 'select' || name === 'shop')) scr.firstElementChild.scrollTop = st;
 }
+UI.show = n => show(n);
 UI.goMenu = function () {
   document.body.classList.remove('playing');
   UI.hideModal(); SF.Input.showJoy(false);
@@ -201,6 +223,26 @@ function onClick(e) {
     case 'goAch': click(); show('ach'); break;
     case 'goSet': click(); show('set'); break;
     case 'goQuest': click(); show('quest'); break;
+    case 'stab': click(); UI.stab = t.dataset.v; rer(); break;
+    case 'buyItem': {
+      const id = t.dataset.id, it = SF.ITEMS[id]; d.items = d.items || {};
+      const lv = d.items[id] || 0;
+      if (lv >= SF.ITEM_MAX) break;
+      const cost = lv === 0 ? it.cost : SF.itemUpCost(id, lv);
+      if (d.gold >= cost) {
+        d.gold -= cost; d.items[id] = lv + 1; d.metaBuys = (d.metaBuys || 0) + 1;
+        if (!lv) { d.equip = d.equip || []; const slots = 1 + (d.meta.belt || 0); if (d.equip.filter(Boolean).length < slots) { const k = d.equip[0] ? 1 : 0; d.equip[k] = id; } }
+        Save.save(); SF.Audio.sfx('pick'); UI.toast(lv ? '已升级 ' + it.name : '已解锁 ' + it.name);
+      } else UI.toast('金币不足');
+      rer(); break;
+    }
+    case 'equip': {
+      const id = t.dataset.id, slots = 1 + (d.meta.belt || 0);
+      let eq = (d.equip || []).slice(0, slots).filter(Boolean);
+      if (eq.includes(id)) eq = eq.filter(x => x !== id);
+      else { if (eq.length >= slots) eq.shift(); eq.push(id); }
+      d.equip = eq; Save.save(); click(); rer(); break;
+    }
     case 'qtab': click(); UI.qtab = t.dataset.v; rer(); break;
     case 'qclaim': { const g = SF.Quests.claimDaily(+t.dataset.i); if (g) { SF.Audio.sfx('chest'); UI.toast('获得 ' + g + ' 金币'); } rer(); break; }
     case 'qreroll': { if (SF.Quests.rerollDaily(+t.dataset.i)) click(); rer(); break; }
@@ -316,7 +358,9 @@ UI.showChest = function (list, gold) {
     <button class="btn gold" data-act="chestOk">太棒了！</button></div>`, 500);
 };
 UI.showPause = function () {
+  const pool = (G.wpool || []).map(id => `<span class="${G.weapons.some(w => w.id === id) ? 'got' : ''}">${SF.Icons.weapon(id)}</span>`).join('');
   openModal(`<div class="dlg"><h3>⏸ 已暂停</h3><div class="hint">${G.stage.name} · ${U.fmtTime(G.time)} · 击杀 ${G.kills}</div>${buildHtml()}
+    <div class="hint" style="margin:12px 0 4px">本局武器池（共 15 种中随机 10 种）</div><div class="build pool">${pool}</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
     <button class="btn gold" data-act="resume">▶ 继续战斗</button>
     <button class="btn red sm" style="width:100%" data-act="quit">放弃本局</button></div></div>`, 150);
@@ -396,6 +440,12 @@ function updateActs() {
   setCd(hud.bDash, dp, sk.dashCd > 0 ? Math.ceil(sk.dashCd) : '', 'd');
   const up = sk.ultT > 0 ? 1 : sk.ultCd > 0 ? Math.round(sk.ultCd / sk.ultMax * 50) / 50 : 0;
   setCd(hud.bUlt, up, sk.ultT > 0 ? '' : sk.ultCd > 0 ? Math.ceil(sk.ultCd) : '', 'u');
+  for (let i = 0; i < 2; i++) {
+    const it = G.items && G.items[i], b = hud.bI[i];
+    const key = it ? it.id : '';
+    if (c0['ik' + i] !== key) { c0['ik' + i] = key; b.style.display = it ? 'block' : 'none'; if (it) b.querySelector('img').src = SF.Icons.url('i:' + it.id); }
+    if (it) setCd(b, it.cd > 0 ? Math.round(it.cd / it.max * 50) / 50 : 0, it.cd > 0 ? Math.ceil(it.cd) : '', 'i' + i);
+  }
   const mw = G.mount || G.near, mk = mw ? (G.mount ? 'x' : 'm') + mw.kind : '';
   if (c0.mk !== mk) {
     c0.mk = mk;

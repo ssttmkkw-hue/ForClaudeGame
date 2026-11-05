@@ -17,7 +17,12 @@ const DAILY = [
   { id: 'level',  key: 'level',     mode: 'max', n: [15, 22],        gold: [70, 120],      icon: 'p:growth',  txt: n => `单局达到 ${n} 级` },
   { id: 'chal',   key: 'chal',      mode: 'sum', n: [2, 4],          gold: [70, 120],      icon: 'x:quest',   txt: n => `完成 ${n} 个局内挑战` },
   { id: 'chests', key: 'chests',    mode: 'sum', n: [3, 5],          gold: [60, 100],      icon: 'x:chest',   txt: n => `开启 ${n} 个宝箱` },
-  { id: 'gold',   key: 'gold',      mode: 'max', n: [150, 300],      gold: [70, 120],      icon: 'x:coins',   txt: n => `单局获得 ${n} 金币` }
+  { id: 'gold',   key: 'gold',      mode: 'max', n: [150, 300],      gold: [70, 120],      icon: 'x:coins',   txt: n => `单局获得 ${n} 金币` },
+  { id: 'crates', key: 'crates',    mode: 'sum', n: [8, 15],         gold: [60, 100],      icon: 'x:crate',   txt: n => `摧毁 ${n} 个木箱` },
+  { id: 'barrels', key: 'barrels',  mode: 'sum', n: [4, 8],          gold: [60, 100],      icon: 'x:barrel',  txt: n => `引爆 ${n} 个火药桶` },
+  { id: 'mech',   key: 'mech',      mode: 'sum', n: [2, 4],          gold: [80, 130],      icon: 'x:obelisk', txt: n => `激活 ${n} 次地图机关（祭坛/塔/方尖碑）` },
+  { id: 'items',  key: 'items',     mode: 'sum', n: [3, 6],          gold: [60, 100],      icon: 'i:potion',  txt: n => `使用主动道具 ${n} 次` },
+  { id: 'coins',  key: 'coins',     mode: 'sum', n: [30, 60],        gold: [60, 100],      icon: 'x:coins',   txt: n => `拾取 ${n} 枚金币` }
 ];
 const bestTime = d => { let b = 0; for (const id of SF.STAGE_ORDER) b = Math.max(b, d.best[id] || 0); return b; };
 const MAIN = [
@@ -32,9 +37,15 @@ const MAIN = [
   { txt: '完成 5 个每日任务',        gold: 400,  n: 5,   icon: 'x:quest',   cur: d => d.dailyDone || 0 },
   { txt: '通关赤沙遗迹',            gold: 600,  n: 1,   icon: 's:desert',  cur: d => d.best.desert_win ? 1 : 0 },
   { txt: '单局达到 35 级',          gold: 600,  n: 35,  icon: 'p:growth',  cur: d => d.bestLv },
+  { txt: '通关幽暗沼泽',            gold: 600,  n: 1,   icon: 's:swamp',   cur: d => d.best.swamp_win ? 1 : 0 },
   { txt: '通关霜冻荒原',            gold: 800,  n: 1,   icon: 's:frost',   cur: d => d.best.frost_win ? 1 : 0 },
   { txt: '累计释放 30 次星陨天降',    gold: 800,  n: 30,  icon: 'a:ult',     cur: d => d.ultsTotal || 0 },
-  { txt: '通关熔岩深渊',            gold: 1500, n: 1,   icon: 's:lava',    cur: d => d.best.lava_win ? 1 : 0 }
+  { txt: '累计使用主动道具 10 次',    gold: 300,  n: 10,  icon: 'i:potion',  cur: d => d.itemsTotal || 0 },
+  { txt: '累计摧毁 40 个木箱',       gold: 300,  n: 40,  icon: 'x:crate',   cur: d => d.cratesTotal || 0 },
+  { txt: '累计激活 8 次地图机关',     gold: 500,  n: 8,   icon: 'x:obelisk', cur: d => d.mechTotal || 0 },
+  { txt: '通关机械废都',            gold: 900,  n: 1,   icon: 's:city',    cur: d => d.best.city_win ? 1 : 0 },
+  { txt: '通关熔岩深渊',            gold: 1500, n: 1,   icon: 's:lava',    cur: d => d.best.lava_win ? 1 : 0 },
+  { txt: '通关天空浮岛',            gold: 2000, n: 1,   icon: 's:sky',     cur: d => d.best.sky_win ? 1 : 0 }
 ];
 Q.DAILY = DAILY; Q.MAIN = MAIN;
 
@@ -94,6 +105,9 @@ Q.onRunEnd = function (run) {
   d.chalDone = (d.chalDone || 0) + (run.chal || 0);
   d.ultsTotal = (d.ultsTotal || 0) + (run.ults || 0);
   d.dashesTotal = (d.dashesTotal || 0) + (run.dashes || 0);
+  d.itemsTotal = (d.itemsTotal || 0) + (run.items || 0);
+  d.cratesTotal = (d.cratesTotal || 0) + (run.crates || 0);
+  d.mechTotal = (d.mechTotal || 0) + (run.mech || 0);
   const dl = Q.ensureDaily(), done = [];
   for (const q of dl.list) {
     if (q.claimed) continue;

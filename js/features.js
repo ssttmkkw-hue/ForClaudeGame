@@ -13,6 +13,19 @@ SF.MAPW = {
   flamer: { name: '喷火塔', dur: 16, desc: '摇杆瞄准，喷射扇形烈焰灼烧敌群' },
   tank:   { name: '战车', dur: 26, hp: 420, desc: '驾驶战车碾压敌人，炮塔自动开火，替你承受伤害' }
 };
+// 主动道具（局外解锁/升级，出征前携带）
+SF.ITEMS = {
+  potion:  { name: '治疗药水', cd: 45, cost: 0,   desc: '立即回复 40% 最大生命', up: '回复量 +10%' },
+  bomb:    { name: '投掷炸弹', cd: 25, cost: 300, desc: '向敌群最密集处投掷大威力炸弹', up: '伤害 +30%，范围 +15%' },
+  magnet:  { name: '磁力核心', cd: 50, cost: 250, desc: '吸取全地图的经验与金币', up: '冷却 -12%' },
+  blink:   { name: '闪现',     cd: 16, cost: 400, desc: '向移动方向瞬移，可穿越地形', up: '距离 +20%' },
+  shield:  { name: '守护护盾', cd: 40, cost: 450, desc: '获得吸收 50% 最大生命伤害的护盾（6 秒）', up: '护盾量 +20%' },
+  turret:  { name: '哨兵炮台', cd: 45, cost: 500, desc: '部署自动炮台，持续开火 15 秒', up: '持续 +3 秒，伤害 +20%' },
+  freeze:  { name: '时光停滞', cd: 60, cost: 650, desc: '冻结所有敌人与弹幕 3 秒', up: '持续 +0.5 秒' },
+  berserk: { name: '狂暴药剂', cd: 55, cost: 700, desc: '8 秒内攻击 +40%，武器冷却 -30%', up: '持续 +2 秒' }
+};
+SF.ITEM_MAX = 3;
+SF.itemUpCost = (id, lv) => Math.round((SF.ITEMS[id].cost || 200) * (0.6 + lv * 0.7) / 10) * 10;
 SF.ACTIVE = {
   dash: { name: '闪避冲刺', desc: '向移动方向冲刺，期间无敌并撞伤敌人' },
   ult:  { name: '星陨天降', desc: '召唤流星雨轰炸敌群，最后冲击波震荡全屏；击杀可加速充能' }
@@ -23,7 +36,12 @@ const CHAL = [
   { id: 'nohit', w: 2, make: () => ({ n: 20, t: 20 }), txt: c => `无伤坚持 ${c.n} 秒` },
   { id: 'elite', w: 2, make: () => { spawnElite(true); return { n: 1, t: 45 }; }, txt: c => `${c.t} 秒内击败挑战精英` },
   { id: 'dash', w: 1.5, make: () => ({ n: 10, t: 35 }), txt: c => `${c.t} 秒内用冲刺撞击 ${c.n} 个敌人` },
-  { id: 'mapw', w: 2, cond: () => G.mapw.some(m => !m.dead), make: () => ({ n: 25, t: 45 }), txt: c => `${c.t} 秒内用地图武器击杀 ${c.n} 个敌人` }
+  { id: 'mapw', w: 2, cond: () => G.mapw.some(m => !m.dead), make: () => ({ n: 25, t: 45 }), txt: c => `${c.t} 秒内用地图武器击杀 ${c.n} 个敌人` },
+  { id: 'hold', w: 2.5, make: () => { const a = Math.random() * TAU, p = SF.Map.nearestValid(G.p.x + Math.cos(a) * 220, G.p.y + Math.sin(a) * 220); G.hold = { x: p[0], y: p[1], r: 75 }; return { n: 15, t: 40 }; }, txt: c => `在标记区域内坚守 ${c.n} 秒` },
+  { id: 'bounty', w: 2, make: () => { const e = spawnElite(true); e.flee = true; e.bounty = true; e.spd *= 1.35; e.hp = e.maxHp = e.maxHp * 1.4; return { n: 1, t: 45 }; }, txt: c => `${c.t} 秒内追杀逃跑的赏金目标` },
+  { id: 'crates', w: 1.5, make: () => ({ n: 4, t: 45 }), txt: c => `${c.t} 秒内摧毁 ${c.n} 个木箱` },
+  { id: 'barrels', w: 1.2, make: () => ({ n: 2, t: 45 }), txt: c => `${c.t} 秒内引爆 ${c.n} 个火药桶` },
+  { id: 'coins', w: 1.5, make: () => ({ n: 12, t: 40 }), txt: c => `${c.t} 秒内拾取 ${c.n} 枚金币` }
 ];
 const REWARD = [
   { id: 'chest', txt: '宝箱', w: 3 }, { id: 'heal', txt: '回复 50% 生命', w: 2 },
@@ -46,6 +64,12 @@ F.start = function () {
   G.mapw = []; G.mapwT = 32; G.mount = null; G.near = null;
   G.chal = null; G.chalT = 45;
   G.frenzy = false; G.eliteT = 0;
+  const own = SF.Save.data.items || {}, eq = (SF.Save.data.equip || []).slice(0, 1 + meta('belt'));
+  G.items = eq.filter(id => id && SF.ITEMS[id] && (own[id] || 0) > 0).map(id => {
+    const lv = own[id], max = SF.ITEMS[id].cd * (1 - 0.12 * (lv - 1) * (id === 'magnet' || id === 'potion' || id === 'bomb' ? 1 : 0.5));
+    return { id, lv, cd: 0, max };
+  });
+  G.freezeT = 0; G.shieldHp = 0; G.shieldT = 0; G.berserkT = 0; G.turrets = []; G.coinMagT = 0;
   const P = G.p; P.dashT = 0; P.dvx = 0; P.dvy = 0; P.ghostT = 0;
 };
 
@@ -134,6 +158,64 @@ F.movePlayer = function (dt) {
   }
   return true;
 };
+
+/* ======================= 主动道具 ======================= */
+F.useItem = function (i) {
+  const it = G.items && G.items[i], P = G.p;
+  if (G.state !== 'play' || !it || it.cd > 0) return false;
+  const lv = it.lv, ls = lvlScale();
+  switch (it.id) {
+    case 'potion': { const v = P.maxHp * (0.4 + 0.1 * (lv - 1)); P.hp = Math.min(P.maxHp, P.hp + v); C().popText(P.x, P.y - 26, '+' + Math.round(v), '#7aff9a', true); V().heal(); A().sfx('heal'); break; }
+    case 'bomb': {
+      const cand = C().nearest(30, 420).slice();
+      let x = P.x + P.face * 160, y = P.y;
+      if (cand.length) { let sx = 0, sy = 0; const k = Math.min(10, cand.length); for (let j = 0; j < k; j++) { sx += cand[j].x; sy += cand[j].y; } x = sx / k; y = sy / k; }
+      G.fx.push({ k: 'meteor', x, y, t: 0.6, T: 0.6, r: 120 * (1 + 0.15 * (lv - 1)), dmg: 150 * (1 + 0.3 * (lv - 1)) * ls * G.stats.might, slot: 7, evo: false, rot: 0, src: 'item' });
+      A().sfx('shoot'); break;
+    }
+    case 'magnet': { for (const g of G.gems) g.mag = true; G.coinMagT = 3; A().sfx('magnet'); UI().toast('🧲 吸取全图经验与金币'); break; }
+    case 'blink': {
+      const v = SF.Input.vec(); let dx = v[0], dy = v[1]; const m = Math.hypot(dx, dy);
+      if (m < 0.2) { dx = P.face; dy = 0; } else { dx /= m; dy /= m; }
+      const D = 230 * (1 + 0.2 * (lv - 1));
+      G.fx.push({ k: 'pillar', x: P.x, y: P.y, life: 0.5, T: 0.5 });
+      V().sparkle(P.x, P.y, '#c890ff', 12);
+      for (let d = D; d >= 20; d -= 15) { const x = P.x + dx * d, y = P.y + dy * d; if (SF.Map.valid(x, y, 13)) { P.x = x; P.y = y; break; } }
+      if (G.mount && G.mount.kind === 'tank') { G.mount.x = P.x; G.mount.y = P.y; }
+      P.inv = Math.max(P.inv, 0.35);
+      V().sparkle(P.x, P.y, '#c890ff', 16); A().sfx('dash'); break;
+    }
+    case 'shield': { G.shieldHp = P.maxHp * 0.5 * (1 + 0.2 * (lv - 1)); G.shieldMax = G.shieldHp; G.shieldT = 6; A().sfx('levelup'); break; }
+    case 'turret': {
+      const p = SF.Map.nearestValid(P.x + P.face * 30, P.y + 10);
+      G.turrets.push({ x: p[0], y: p[1], t: 15 + 3 * (lv - 1), T: 15 + 3 * (lv - 1), aim: 0, fireT: 0.2, recoil: 0, dmg: 34 * (1 + 0.2 * (lv - 1)) });
+      G.fx.push({ k: 'pillar', x: p[0], y: p[1], life: 0.8, T: 0.8 }); A().sfx('cannon'); break;
+    }
+    case 'freeze': {
+      G.freezeT = 3 + 0.5 * (lv - 1);
+      for (const e of G.enemies) if (!e.dead) { e.stun = Math.max(e.stun, G.freezeT); e.slow = 0; e.slowT = Math.max(e.slowT, G.freezeT); }
+      G.flash = 0.5; A().sfx('nova'); UI().banner('⏳ 时光停滞！', 1400); break;
+    }
+    case 'berserk': { G.berserkT = 8 + 2 * (lv - 1); A().sfx('ult'); UI().toast('💢 狂暴！攻击与攻速提升'); break; }
+  }
+  it.cd = it.max;
+  G.run.items = (G.run.items || 0) + 1;
+  return true;
+};
+function updateItems(dt) {
+  for (const it of G.items) if (it.cd > 0) it.cd -= dt;
+  if (G.freezeT > 0) G.freezeT -= dt;
+  if (G.shieldT > 0) { G.shieldT -= dt; if (G.shieldT <= 0) G.shieldHp = 0; }
+  if (G.berserkT > 0) G.berserkT -= dt;
+  if (G.coinMagT > 0) { G.coinMagT -= dt; for (const p of G.picks) if (p.k === 'coin') { const dx = G.p.x - p.x, dy = G.p.y - p.y, d = Math.hypot(dx, dy) || 1; p.x += dx / d * 700 * dt; p.y += dy / d * 700 * dt; } }
+  for (const t of G.turrets) {
+    t.t -= dt; t.fireT -= dt; if (t.recoil > 0) t.recoil -= dt * 6;
+    if (t.t <= 0) { t.dead = true; V().burst(t.x, t.y, '#c8ccd8', 10, 150, 0.4, 3, 'shard'); continue; }
+    const tg = nearestTarget(t.x, t.y, 460);
+    if (tg) { t.aim = turn(t.aim, Math.atan2(tg.y - t.y, tg.x - t.x), 10 * dt); if (t.fireT <= 0) { t.fireT = 0.55; fireShell(t, t.aim, t.dmg * G.stats.might * lvlScale(), 60); t.recoil = 1; } }
+  }
+  G.turrets = G.turrets.filter(t => !t.dead);
+}
 
 /* ======================= 地图武器 ======================= */
 function spawnMapw() {
@@ -283,6 +365,11 @@ F.dismount = function (broken) {
 };
 // 玩家受伤前的修正：返回最终伤害（0 表示被吸收）
 F.onPlayerHurt = function (dmg) {
+  if (G.shieldHp > 0) {
+    const a = Math.min(G.shieldHp, dmg); G.shieldHp -= a; dmg -= a;
+    if (G.shieldHp <= 0) { G.shieldT = 0; V().burst(G.p.x, G.p.y, '#7fd8ff', 12, 200, 0.4, 3, 'shard'); }
+    if (dmg <= 0) return 0;
+  }
   if (G.chal && G.chal.id === 'nohit' && !G.chal.done) failChal();
   const mw = G.mount;
   if (mw && mw.kind === 'tank') {
@@ -320,7 +407,7 @@ function giveReward(id) {
   else if (id === 'ult') G.sk.ultCd = 0;
 }
 function doneChal() {
-  const c = G.chal;
+  const c = G.chal; G.hold = null;
   c.done = true; G.run.chal++;
   giveReward(c.reward);
   UI().banner('✔ 挑战完成！获得：' + c.rtxt, 2000);
@@ -329,7 +416,8 @@ function doneChal() {
   G.chalEnd = 1.6; G.chalT = U.rand(32, 46);
 }
 function failChal() {
-  const c = G.chal;
+  const c = G.chal; G.hold = null;
+  if (c.id === 'bounty') for (const e of G.enemies) if (e.bounty && !e.dead) { e.flee = false; e.bounty = false; }
   c.done = true; c.fail = true;
   UI().toast('✘ 挑战失败');
   A().sfx('back');
@@ -341,6 +429,7 @@ function updateChal(dt) {
     if (c.done) { G.chalEnd -= dt; if (G.chalEnd <= 0) G.chal = null; return; }
     c.left -= dt;
     if (c.id === 'nohit') c.p = c.t - c.left;
+    if (c.id === 'hold' && G.hold && Math.hypot(G.p.x - G.hold.x, G.p.y - G.hold.y) < G.hold.r) c.p += dt;
     if (c.p >= c.n) { doneChal(); return; }
     if (c.left <= 0) failChal();
     return;
@@ -378,8 +467,17 @@ F.onKill = function (e) {
   const c = G.chal;
   if (c && !c.done) {
     if (c.id === 'kill') c.p++;
-    else if (c.id === 'elite' && e.chal) c.p++;
+    else if ((c.id === 'elite' || c.id === 'bounty') && e.chal) c.p++;
   }
+};
+F.onProp = function (k) {
+  const c = G.chal;
+  if (c && !c.done && ((k === 'crate' && c.id === 'crates') || (k === 'barrel' && c.id === 'barrels'))) c.p++;
+};
+F.onCoin = function () {
+  G.run.coins = (G.run.coins || 0) + 1;
+  const c = G.chal;
+  if (c && !c.done && c.id === 'coins') c.p++;
 };
 F.onGem = function () {
   G.run.gems++;
@@ -387,6 +485,7 @@ F.onGem = function () {
 };
 F.update = function (dt) {
   updateSkills(dt);
+  updateItems(dt);
   updateMapw(dt);
   updateChal(dt);
   updateDifficulty(dt);
