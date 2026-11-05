@@ -37,6 +37,11 @@ In.init = function () {
     const k = e.key.toLowerCase();
     In.keys[k] = true;
     if (k === 'escape' || k === 'p') { if (In.onPause) In.onPause(); }
+    if (!e.repeat && SF.Feat && SF.G.state === 'play') {
+      if (k === ' ' || k === 'shift') SF.Feat.dash();
+      else if (k === 'q') SF.Feat.ult();
+      else if (k === 'f' || k === 'e') SF.Feat.toggleMount();
+    }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   });
   window.addEventListener('keyup', e => { In.keys[e.key.toLowerCase()] = false; });

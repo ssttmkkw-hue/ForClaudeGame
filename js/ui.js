@@ -21,6 +21,21 @@ UI.init = function () {
   SF.Input.onPause = () => { if (G.state === 'play') SF.Game.pause(); else if (G.state === 'paused') SF.Game.resume(); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) { SF.Game.pause(); SF.Audio.suspend(); } else SF.Audio.resume(); });
   focusChar = Save.data.sel.char;
+  // 主动技能 / 操控按钮（pointerdown 立即响应，不影响摇杆）
+  hud.chal = $('#chal'); hud.chalT = hud.chal.querySelector('.ct'); hud.chalP = hud.chal.querySelector('.pb i');
+  hud.chalTl = hud.chal.querySelector('.tl'); hud.chalRw = hud.chal.querySelector('.rw');
+  const bind = (id, fn, icon) => {
+    const el = document.getElementById(id);
+    if (icon) el.querySelector('img').src = SF.Icons.url(icon);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); SF.Audio.resume(); fn(); });
+    el.addEventListener('click', e => e.stopPropagation());
+    return el;
+  };
+  hud.bDash = bind('btn-dash', () => SF.Feat.dash(), 'a:dash');
+  hud.bUlt = bind('btn-ult', () => SF.Feat.ult(), 'a:ult');
+  hud.bMount = bind('btn-mount', () => SF.Feat.toggleMount());
+  hud.bMountImg = hud.bMount.querySelector('img'); hud.bMountTx = hud.bMount.querySelector('span');
+  for (const b of [hud.bDash, hud.bUlt]) { b._cd = b.querySelector('.cd'); b._em = b.querySelector('em'); }
 };
 
 function stars() {
@@ -37,7 +52,7 @@ function bar(title, back) {
 /* ------------------------- 各界面 ------------------------- */
 const VIEWS = {
   menu() {
-    const d = Save.data;
+    const d = Save.data, qn = SF.Quests.claimable();
     return `<div class="screen menu">${stars()}
       ${goldChip()}
       <div class="logo">星陨战记</div>
@@ -46,7 +61,7 @@ const VIEWS = {
       <div class="btns">
         <button class="btn gold" data-act="goSelect">⚔ 出 征</button>
         <button class="btn" data-act="goShop">⬆ 强化商店</button>
-        <div class="row"><button class="btn sec" data-act="goAch">${I('x:trophy')}成就</button><button class="btn sec" data-act="goSet">⚙ 设置</button></div>
+        <div class="row three"><button class="btn sec" data-act="goQuest">${I('x:quest')}任务${qn ? `<i class="badge">${qn}</i>` : ''}</button><button class="btn sec" data-act="goAch">${I('x:trophy')}成就</button><button class="btn sec" data-act="goSet">⚙ 设置</button></div>
       </div>
       <div class="foot">拖动屏幕移动 · 武器自动攻击 · 存活并击败 Boss</div>
     </div>`;
@@ -103,6 +118,36 @@ const VIEWS = {
     }
     return h + '</div></div>';
   },
+  quest() {
+    const d = Save.data, dl = SF.Quests.ensureDaily(), tab = UI.qtab || 'daily';
+    let h = `<div class="screen">${bar('任务')}
+      <div class="tabs"><button class="${tab === 'daily' ? 'on' : ''}" data-act="qtab" data-v="daily">每日任务</button><button class="${tab === 'main' ? 'on' : ''}" data-act="qtab" data-v="main">主线任务</button></div><div class="list">`;
+    if (tab === 'daily') {
+      h += `<div class="ds" style="text-align:center;color:var(--dim);font-size:12px">每天 0 点刷新 · 进度在每局结束时结算 · 今日可免费更换 ${dl.reroll} 次</div>`;
+      dl.list.forEach((q, i) => {
+        const def = SF.Quests.def(q.id), done = q.prog >= q.n, pc = Math.min(100, q.prog / q.n * 100);
+        const pv = def.key === 'time' ? `${U.fmtTime(Math.min(q.prog, q.n))} / ${U.fmtTime(q.n)}` : `${Math.min(q.prog, q.n)} / ${q.n}`;
+        h += `<div class="card quest ${q.claimed ? 'claimed' : done ? 'done' : ''}"><div class="ic">${I(def.icon)}</div><div class="bd">
+          <div class="nm">${def.txt(q.n)}</div><div class="qbar"><i style="width:${pc}%"></i><span>${pv}</span></div>
+          <div class="ds">奖励 ${COIN()}${q.gold}${!q.claimed && !done && dl.reroll > 0 ? `　<button class="link" data-act="qreroll" data-i="${i}">🎲 换一个</button>` : ''}</div></div>
+          <button class="btn sm ${q.claimed ? 'sec dis' : done ? 'gold' : 'sec dis'}" data-act="qclaim" data-i="${i}">${q.claimed ? '已领取' : done ? '领取' : '进行中'}</button></div>`;
+      });
+    } else {
+      const idx = d.mainIdx || 0, M = SF.Quests.MAIN;
+      h += `<div class="ds" style="text-align:center;color:var(--dim);font-size:12px">主线进度 ${Math.min(idx, M.length)} / ${M.length}</div>`;
+      M.forEach((q, i) => {
+        if (i < idx - 1 || i > idx + 3) return;
+        const cur = i === idx, past = i < idx, pg = SF.Quests.mainProg(q), done = cur && pg >= q.n;
+        const pv = q.time ? `${U.fmtTime(pg)} / ${U.fmtTime(q.n)}` : `${pg} / ${q.n}`;
+        h += `<div class="card quest ${past ? 'claimed' : done ? 'done' : cur ? '' : 'lock'}"><div class="ic">${I(q.icon)}</div><div class="bd">
+          <div class="nm">${i + 1}. ${q.txt}</div>${cur ? `<div class="qbar"><i style="width:${Math.min(100, pg / q.n * 100)}%"></i><span>${pv}</span></div>` : ''}
+          <div class="ds">奖励 ${COIN()}${q.gold}</div></div>
+          ${cur ? `<button class="btn sm ${done ? 'gold' : 'sec dis'}" data-act="mclaim">${done ? '领取' : '进行中'}</button>` : past ? '<span class="qok">✔</span>' : '<span class="qok">🔒</span>'}</div>`;
+      });
+      if (idx >= M.length) h += `<div class="card quest done"><div class="bd"><div class="nm">🏆 主线任务已全部完成！</div></div></div>`;
+    }
+    return h + '</div></div>';
+  },
   set() {
     const s = Save.data.set;
     const row = (k, t) => `<div class="set-row"><span>${t}</span><button class="sw ${s[k] ? 'on' : ''}" data-act="tog" data-k="${k}" aria-label="${t}"></button></div>`;
@@ -135,7 +180,8 @@ UI.onStart = function () {
   hud.timer.textContent = '00:00'; hud.bossbar.style.display = 'none';
   hud.cache = {};
   UI.refreshItems();
-  if (!Save.data.runs) UI.banner('👆 按住屏幕拖动移动\n武器会自动攻击', 3200);
+  if (!Save.data.runs) UI.banner('👆 拖动屏幕移动，武器自动攻击\n右下角按钮释放技能', 3600);
+  hud.chal.style.display = 'none'; c0 = {};
 };
 
 /* ------------------------- 事件 ------------------------- */
@@ -153,6 +199,11 @@ function onClick(e) {
     case 'goShop': click(); show('shop'); break;
     case 'goAch': click(); show('ach'); break;
     case 'goSet': click(); show('set'); break;
+    case 'goQuest': click(); show('quest'); break;
+    case 'qtab': click(); UI.qtab = t.dataset.v; rer(); break;
+    case 'qclaim': { const g = SF.Quests.claimDaily(+t.dataset.i); if (g) { SF.Audio.sfx('chest'); UI.toast('获得 ' + g + ' 金币'); } rer(); break; }
+    case 'qreroll': { if (SF.Quests.rerollDaily(+t.dataset.i)) click(); rer(); break; }
+    case 'mclaim': { const g = SF.Quests.claimMain(); if (g) { SF.Audio.sfx('chest'); UI.toast('获得 ' + g + ' 金币'); } rer(); break; }
     case 'stage': if (d.stages.includes(t.dataset.id)) { click(); d.sel.stage = t.dataset.id; Save.save(); rer(); } else UI.toast('🔒 通关上一关后解锁'); break;
     case 'char': {
       click(); focusChar = t.dataset.id;
@@ -176,7 +227,7 @@ function onClick(e) {
       const id = t.dataset.id, m = SF.META[id], lv = d.meta[id] || 0;
       if (lv >= m.max) break;
       const cost = SF.metaCost(id, lv);
-      if (d.gold >= cost) { d.gold -= cost; d.meta[id] = lv + 1; Save.save(); SF.Audio.sfx('pick'); }
+      if (d.gold >= cost) { d.gold -= cost; d.meta[id] = lv + 1; d.metaBuys = (d.metaBuys || 0) + 1; Save.save(); SF.Audio.sfx('pick'); }
       else UI.toast('金币不足');
       rer(); break;
     }
@@ -275,6 +326,8 @@ UI.showResult = function (r) {
   let ach = '';
   for (const a of r.newAch) ach += `<div class="ach-new">🏆 成就达成：<b>${a.name}</b>　+${COIN()}${a.gold}</div>`;
   if (r.unlocked) ach += `<div class="ach-new">🔓 新关卡解锁：<b>${r.unlocked.name}</b></div>`;
+  for (const q of r.questDone || []) ach += `<div class="ach-new quest">📜 任务完成：<b>${q}</b>（前往「任务」领取）</div>`;
+  if (r.run) ach += `<div class="runline">冲刺 ${r.run.dashes} 次 · 大招 ${r.run.ults} 次 · 地图武器击杀 ${r.run.mapwKills} · 挑战完成 ${r.run.chal}</div>`;
   const title = r.win ? '🏆 战斗胜利！' : r.quit ? '已撤退' : '💀 你倒下了';
   openModal(`<div class="dlg"><h3 class="${r.win ? 'win' : 'lose'}">${title}</h3><div class="hint">${r.stage.name}</div>
     <div class="res-grid"><div><b>${U.fmtTime(r.time)}</b><span>存活时间</span></div><div><b>${r.kills}</b><span>击杀数</span></div>
@@ -323,5 +376,38 @@ UI.updateHud = function () {
     if (c.b !== b.id) { c.b = b.id; hud.bossname.textContent = b.def.name; hud.bossbar.style.display = 'block'; }
     hud.bossi.style.width = Math.max(0, b.hp / b.maxHp * 100).toFixed(1) + '%';
   } else if (c.b) { c.b = 0; hud.bossbar.style.display = 'none'; }
+  updateActs();
 };
+let c0 = {};
+function setCd(btn, p, txt, key) {
+  if (c0[key + 'p'] !== p) { c0[key + 'p'] = p; btn._cd.style.setProperty('--p', p); btn.classList.toggle('ready', p === 0); }
+  if (c0[key + 't'] !== txt) { c0[key + 't'] = txt; btn._em.textContent = txt; }
+}
+function updateActs() {
+  const sk = G.sk;
+  if (!sk) return;
+  const dp = sk.dashCd > 0 ? Math.round(sk.dashCd / sk.dashMax * 50) / 50 : 0;
+  setCd(hud.bDash, dp, sk.dashCd > 0 ? Math.ceil(sk.dashCd) : '', 'd');
+  const up = sk.ultT > 0 ? 1 : sk.ultCd > 0 ? Math.round(sk.ultCd / sk.ultMax * 50) / 50 : 0;
+  setCd(hud.bUlt, up, sk.ultT > 0 ? '' : sk.ultCd > 0 ? Math.ceil(sk.ultCd) : '', 'u');
+  const mw = G.mount || G.near, mk = mw ? (G.mount ? 'x' : 'm') + mw.kind : '';
+  if (c0.mk !== mk) {
+    c0.mk = mk;
+    hud.bMount.style.display = mw ? 'block' : 'none';
+    if (mw) { hud.bMountImg.src = SF.Icons.url('k:' + mw.kind); hud.bMountTx.textContent = G.mount ? '离开' : '操控'; hud.bMount.classList.toggle('on', !!G.mount); }
+  }
+  // 局内挑战面板
+  const ch = G.chal;
+  const key = ch ? ch.txt + (ch.done ? (ch.fail ? 'F' : 'D') : '') : '';
+  if (c0.ck !== key) {
+    c0.ck = key;
+    hud.chal.style.display = ch ? 'block' : 'none';
+    if (ch) { hud.chalT.textContent = ch.txt; hud.chalRw.textContent = '奖励：' + ch.rtxt; hud.chal.className = ch.done ? (ch.fail ? 'fail' : 'ok') : ''; }
+  }
+  if (ch) {
+    const pc = Math.min(100, ch.p / ch.n * 100).toFixed(0), tl = ch.done ? (ch.fail ? '失败' : '完成！') : Math.max(0, Math.ceil(ch.left)) + ' 秒';
+    if (c0.cp !== pc) { c0.cp = pc; hud.chalP.style.width = pc + '%'; }
+    if (c0.ct !== tl) { c0.ct = tl; hud.chalTl.textContent = (ch.id === 'nohit' ? '' : Math.min(ch.p, ch.n) + '/' + ch.n + ' · ') + tl; }
+  }
+}
 })(window.SF = window.SF || {});

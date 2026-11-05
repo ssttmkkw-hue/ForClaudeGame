@@ -45,6 +45,7 @@ function defaults() {
   return {
     gold: 0, totalGold: 0, kills: 0, runs: 0, wins: 0, bosses: 0, bestLv: 0, playTime: 0,
     meta: {}, chars: ['aileen'], stages: ['meadow'], best: {}, ach: {},
+    daily: null, mainIdx: 0, metaBuys: 0, dailyDone: 0, evos: 0, mapwKills: 0, chalDone: 0, ultsTotal: 0, dashesTotal: 0,
     set: { sound: true, music: true, vib: true, dmg: true, hq: true, joy: 'float' },
     sel: { stage: 'meadow', char: 'aileen' }
   };

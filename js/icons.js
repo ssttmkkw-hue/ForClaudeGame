@@ -8,6 +8,8 @@ const L = () => SF.Sprites.lib;
 
 const FRAME = {
   w: ['#4a3478', '#1c1434', '#9a86ff'],
+  a: ['#7a2a3a', '#2a0c14', '#ff8a9a'],
+  k: ['#4a4a2a', '#1c1c0e', '#d8c86a'],
   e: ['#7a4a10', '#2e1806', '#ffd24a'],
   p: ['#1e5a50', '#0c2622', '#62e0b8'],
   m: ['#4a2468', '#1a0e2a', '#c88aff'],
@@ -198,9 +200,40 @@ const GL = {
     part(g, () => { g.beginPath(); g.roundRect(-14, 20, 28, 9, 2); }, '#8a5a30', 0, 24, 14, { lw: 2.5 });
     g.drawImage(SF.Sprites.star('#ffffff'), -16, -26, 18, 18);
   }
+,
+  dash(g) {
+    const { line } = L();
+    g.save(); g.shadowColor = '#7fe0ff'; g.shadowBlur = 10;
+    for (let i = 0; i < 4; i++) line(g, [-30 + i * 4, -14 + i * 9, -4 + i * 4, -14 + i * 9], 4, i % 2 ? '#bff0ff' : '#7fd8ff');
+    g.restore();
+    L().polyPath(g, [-2, -26, 30, 0, -2, 26, 6, 0]);
+    const gr = g.createLinearGradient(-2, 0, 30, 0); gr.addColorStop(0, '#7fd8ff'); gr.addColorStop(1, '#ffffff');
+    g.fillStyle = gr; g.fill(); g.lineWidth = 3; g.strokeStyle = 'rgba(16,20,40,.9)'; g.lineJoin = 'round'; g.stroke();
+  },
+  ult(g) {
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for (const [x, y, s, r] of [[-14, -16, 46, 0.7], [10, -4, 40, 0.75], [-2, 14, 30, 0.7]]) { g.save(); g.translate(x, y); g.rotate(-2.3); g.drawImage(SF.Sprites.comet('#ff6ad8'), -4, -s * 0.16, s, s * 0.32); g.restore(); }
+    g.restore();
+    g.drawImage(SF.Sprites.star('#ffd86a'), -6, -6, 40, 40);
+    g.drawImage(SF.Sprites.meteorRock(), -26, -24, 22, 22); g.drawImage(SF.Sprites.meteorRock(), 2, -12, 18, 18);
+  },
+  cannon(g) { g.drawImage(SF.Sprites.mapw('cannonBase'), -34, -30, 68, 68); g.save(); g.translate(0, -4); g.rotate(-0.6); g.drawImage(SF.Sprites.mapw('cannonBarrel'), -14, -16, 60, 32); g.restore(); },
+  flamer(g) {
+    g.drawImage(SF.Sprites.mapw('flamerBase'), -34, -30, 68, 68);
+    g.save(); g.globalCompositeOperation = 'lighter'; g.drawImage(SF.Sprites.glow('#ff8a2a'), 6, -42, 40, 40); g.restore();
+    g.save(); g.translate(0, -4); g.rotate(-0.6); g.drawImage(SF.Sprites.mapw('flamerNozzle'), -12, -16, 56, 32); g.restore();
+  },
+  tank(g) { g.save(); g.rotate(-0.35); g.drawImage(SF.Sprites.mapw('tankBody'), -40, -30, 80, 60); g.drawImage(SF.Sprites.mapw('tankTurret'), -16, -18, 56, 30); g.restore(); },
+  quest(g) {
+    const { part, line } = L();
+    part(g, () => { g.beginPath(); g.roundRect(-22, -28, 44, 56, 6); }, '#f2e2b8', 0, 0, 30, { lw: 3 });
+    part(g, () => { g.beginPath(); g.roundRect(-10, -33, 20, 10, 3); }, '#a8742f', 0, -28, 10, { lw: 2.5 });
+    for (let i = 0; i < 3; i++) { line(g, [-14, -12 + i * 13, -9, -7 + i * 13, -2, -17 + i * 13], 3, '#3ab05a'); line(g, [3, -12 + i * 13, 15, -12 + i * 13], 2.5, '#a8865a'); }
+  },
+  chest(g) { g.drawImage(SF.Sprites.pickup('chest'), -40, -40, 80, 80); }
 };
 const PASS_GL = { might: 'ring', cd: 'hourglass', area: 'scroll', move: 'boot', hp: 'heart', regen: 'leaf', armor: 'shield', magnet: 'magnet', growth: 'book', amount: 'mirror', luck: 'clover', greed: 'coins' };
-const META_GL = { might: 'sword', hp: 'heart', armor: 'shield', move: 'boot', regen: 'leaf', growth: 'book', greed: 'coins', magnet: 'magnet', cd: 'hourglass', luck: 'clover', revive: 'feather', reroll: 'dice', skip: 'skip' };
+const META_GL = { dashm: 'dash', ultm: 'ult', mapwm: 'cannon', might: 'sword', hp: 'heart', armor: 'shield', move: 'boot', regen: 'leaf', growth: 'book', greed: 'coins', magnet: 'magnet', cd: 'hourglass', luck: 'clover', revive: 'feather', reroll: 'dice', skip: 'skip' };
 
 function frame(g, cat) {
   const { mk } = L();
@@ -235,7 +268,7 @@ function make(key) {
   if (GL[glyph]) GL[glyph](g, evo);
   return c.toDataURL();
 }
-// key: w:武器 / e:进化武器 / p:被动 / m:局外强化 / s:关卡 / x:杂项（meat、coins、skull、trophy）
+// key: w:武器 / e:进化武器 / p:被动 / m:局外强化 / s:关卡 / a:主动技能 / k:地图武器 / x:杂项
 Ic.url = function (key) { return cache[key] || (cache[key] = make(key)); };
 Ic.img = function (key, cls) { return `<img class="ico${cls ? ' ' + cls : ''}" src="${Ic.url(key)}" alt="">`; };
 Ic.weapon = (id, evo) => Ic.img((evo ? 'e:' : 'w:') + id);

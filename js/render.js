@@ -188,7 +188,11 @@ R.draw = function () {
   if (PROF) prof('地面预警（法阵、冲锋路线）');
   // 地面预警（法阵、冲锋路线）
   for (const f of G.fx) {
-    if (f.k === 'meteor') {
+    if (f.k === 'meteor' && f.src === 'ult') {
+      const a = 1 - f.t / f.T;
+      ctx.globalCompositeOperation = 'lighter'; glowAt('#ff6ad8', f.x, f.y, f.r * (0.5 + 0.6 * a), 0.25 + 0.35 * a);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    } else if (f.k === 'meteor') {
       const a = 1 - f.t / f.T, col = f.evo ? '#ff4a9a' : '#ff7a2a';
       ctx.globalAlpha = 0.2 * a; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * a, 0, TAU); ctx.fill();
       ctx.globalAlpha = 0.35 + 0.55 * a;
@@ -250,6 +254,24 @@ R.draw = function () {
   }
 
   if (PROF) prof('阴影');
+  // 地图武器底座
+  const MWB = Sp.MWBOX;
+  const mwDraw = (name, x, y, ang, sc) => { const b = MWB[name]; rotDraw(Sp.mapw(name), x, y, ang, b[0] * (sc || 1), b[1] * (sc || 1), b[2] / b[0], b[3] / b[1]); };
+  for (const mw of G.mapw || []) {
+    if (!vis(mw.x, mw.y, 60)) continue;
+    if (G.near === mw) {
+      const pr = 0.5 + 0.5 * Math.sin(now * 6);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55 + 0.35 * pr;
+      ctx.drawImage(Sp.ring('#ffd86a'), mw.x - 44, mw.y - 40, 88, 88);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    } else if (!mw.mounted) {
+      ctx.globalAlpha = 0.5 + 0.2 * Math.sin(now * 3);
+      rotDraw(Sp.rune('#ffd86a'), mw.x, mw.y + 6, now * 0.5, 74, 62);
+      ctx.globalAlpha = 1;
+    }
+    if (mw.kind === 'cannon') mwDraw('cannonBase', mw.x, mw.y, 0);
+    else if (mw.kind === 'flamer') mwDraw('flamerBase', mw.x, mw.y, 0);
+  }
   // 阴影
   const shd = Sp.shadow(); // 敌人阴影已烘焙进动画帧，这里只画玩家阴影
   ctx.globalAlpha = 0.85; ctx.drawImage(shd, P.x - 18, P.y + 12, 36, 12); ctx.globalAlpha = 1;
@@ -275,6 +297,7 @@ R.draw = function () {
     if (e.slowT > 0) { ctx.globalAlpha = 0.8; flipDraw(Sp.frame(spr, fi, 'i'), e.x, e.y, fc, sz, sz, 0.5, 0.5); }
     if (e.flash > 0) { ctx.globalAlpha = Math.min(0.75, e.flash / 0.09 * 0.75); flipDraw(Sp.frame(spr, fi, 'w'), e.x, e.y, fc, sz, sz, 0.5, 0.5); }
     ctx.globalAlpha = 1;
+    if (e.chal) { ctx.globalAlpha = 0.8; rotDraw(Sp.rune('#ff4a6a'), e.x, e.y + e.r * 0.5, now * 2, e.r * 3.4, e.r * 2.6); ctx.globalAlpha = 1; }
     if (e.elite && !e.boss) {
       const bw = e.r * 1.8, by = e.y - e.r * 1.35 - 8;
       ctx.fillStyle = 'rgba(10,8,20,.75)'; ctx.beginPath(); ctx.roundRect(e.x - bw / 2 - 2, by - 2, bw + 4, 7, 3.5); ctx.fill();
@@ -288,6 +311,7 @@ R.draw = function () {
   // 玩家
   {
     if (P.inv > 0 && ((now * 14) | 0) % 2) ctx.globalAlpha = 0.45;
+    if (G.mount && G.mount.kind === 'tank') ctx.globalAlpha = 0;
     const HB = Sp.HERO_BOX, blink = !P.moving && (P.t % 3.4) < 0.12;
     const fi = P.moving ? ((P.t * 13 / TAU * 8) | 0) % 8 : ((P.t * 2.6 / TAU * 8) | 0) % 8;
     flipDraw(Sp.heroFrame(G.chId, P.moving, fi, blink), P.x, P.y + 3, P.face < 0 ? -1 : 1, HB.w, HB.h, HB.ox / HB.w, HB.oy / HB.h);
@@ -303,6 +327,42 @@ R.draw = function () {
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(P.x - bw / 2, by, Math.max(0.1, bw * f), 4, 2); ctx.fill();
   }
   for (let i = 0; i < G.bigs.length; i++) drawEnemy(G.bigs[i]);
+
+  // 地图武器炮管、战车与能量条
+  for (const mw of G.mapw || []) {
+    if (!vis(mw.x, mw.y, 70)) continue;
+    const rc = (mw.recoil || 0) * 6;
+    if (mw.kind === 'cannon') mwDraw('cannonBarrel', mw.x - Math.cos(mw.aim) * rc, mw.y - 6 - Math.sin(mw.aim) * rc, mw.aim);
+    else if (mw.kind === 'flamer') {
+      if (mw.firing) {
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 1; i <= 4; i++) glowAt(i % 2 ? '#ff7a2a' : '#ffd24a', mw.x + Math.cos(mw.aim) * (26 + i * 34), mw.y - 8 + Math.sin(mw.aim) * (26 + i * 34), 18 + i * 9, 0.5 - i * 0.07);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      }
+      mwDraw('flamerNozzle', mw.x, mw.y - 6, mw.aim);
+    } else if (mw.kind === 'tank') {
+      mwDraw('tankBody', mw.x, mw.y, mw.ang);
+      mwDraw('tankTurret', mw.x - Math.cos(mw.tAng) * rc, mw.y - 4 - Math.sin(mw.tAng) * rc, mw.tAng);
+      if (mw.mounted) {
+        const HB = Sp.HERO_BOX;
+        ctx.save(); ctx.beginPath(); ctx.rect(mw.x - 30, mw.y - 60, 60, 54); ctx.clip();
+        flipDraw(Sp.heroFrame(G.chId, false, 0, false), mw.x - 2, mw.y - 6, P.face < 0 ? -1 : 1, HB.w * 0.8, HB.h * 0.8, HB.ox / HB.w, HB.oy / HB.h);
+        ctx.restore();
+      }
+      if (mw.flash > 0) { ctx.globalCompositeOperation = 'lighter'; glowAt('#ffffff', mw.x, mw.y, 44, mw.flash * 5); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+    }
+    if (mw.energy < mw.max || mw.mounted) {
+      const bw = 46, by = mw.kind === 'tank' || !mw.mounted ? mw.y - 44 : mw.y + 30;
+      ctx.fillStyle = 'rgba(10,8,20,.75)'; ctx.beginPath(); ctx.roundRect(mw.x - bw / 2 - 2, by - 2, bw + 4, mw.maxHp ? 11 : 7, 3); ctx.fill();
+      ctx.fillStyle = '#5ad0ff'; ctx.fillRect(mw.x - bw / 2, by, bw * Math.max(0, mw.energy / mw.max), 3);
+      if (mw.maxHp) { ctx.fillStyle = '#ff7a5a'; ctx.fillRect(mw.x - bw / 2, by + 4, bw * Math.max(0, mw.hp / mw.maxHp), 3); }
+    }
+    if (G.near === mw) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 12px system-ui, sans-serif';
+      ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(10,6,20,.9)'; ctx.strokeText(SF.MAPW[mw.kind].name, mw.x, mw.y - 52);
+      ctx.fillStyle = '#ffd86a'; ctx.fillText(SF.MAPW[mw.kind].name, mw.x, mw.y - 52); ctx.textBaseline = 'alphabetic';
+    }
+  }
 
   if (PROF) prof('旋转圣剑');
   // 旋转圣剑
@@ -338,6 +398,11 @@ R.draw = function () {
       ctx.globalAlpha = 1; rotDraw(Sp.star(p.col), p.x, p.y, now * 6, p.r * 3, p.r * 3);
       ctx.globalCompositeOperation = 'source-over';
       if (Math.random() < 0.35 && V.room(0.6)) V.p('star', p.x, p.y, U.rand(-20, 20), U.rand(-20, 20), 0.3, U.rand(3, 5), p.col);
+    } else if (p.k === 'shell') {
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.8 * FXA;
+      rotDraw(Sp.comet('#ffb44a'), p.x, p.y, Math.atan2(p.vy, p.vx), 46, 16, 0.92, 0.5);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      ctx.drawImage(Sp.mapw('shell'), p.x - 12, p.y - 12, 24, 24);
     } else if (p.k === 'axe') {
       const img = Sp.axe(p.evo), s = p.r * 2.7;
       if (p.evo) { ctx.globalCompositeOperation = 'lighter'; glowAt('#5affc0', p.x, p.y, s * 0.9, 0.45); ctx.globalCompositeOperation = 'source-over'; }
@@ -439,6 +504,12 @@ R.draw = function () {
       for (let i = 2; i < pts.length; i += 2) glowAt(col, pts[i], pts[i + 1], 18, 0.7 * a);
       glowAt('#ffffff', pts[0], pts[1], 14, 0.6 * a);
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    } else if (f.k === 'ghost') {
+      const HB = Sp.HERO_BOX, fi = ((f.t * 13 / TAU * 8) | 0) % 8;
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 0.4 * f.life / f.T;
+      flipDraw(Sp.heroFrame(G.chId, true, fi, false), f.x, f.y + 3, f.face < 0 ? -1 : 1, HB.w, HB.h, HB.ox / HB.w, HB.oy / HB.h);
+      ctx.globalCompositeOperation = 'lighter'; glowAt('#7fd8ff', f.x, f.y - 6, 22, 0.35 * f.life / f.T);
+      ctx.globalAlpha = 1;
     } else if (f.k === 'pillar') {
       const a = f.life / f.T, wd = 46 * (0.3 + 0.7 * a);
       ctx.globalCompositeOperation = 'lighter';
@@ -514,6 +585,31 @@ R.draw = function () {
   ctx.drawImage(Sp.overlay(kind, cv.width, cv.height), 0, 0, cv.width, cv.height);
 
   if (PROF) prof('屏幕白闪');
+  // 大招与狂潮的屏幕色调
+  if (G.sk && G.sk.ultT > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.16 + 0.06 * Math.sin(now * 12); ctx.fillStyle = '#a03aff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+  else if (G.frenzy) { const k2 = 0.06 + 0.04 * Math.sin(now * 2.5); const vg = ctx.createRadialGradient(cv.width / 2, cv.height / 2, Math.min(cv.width, cv.height) * 0.35, cv.width / 2, cv.height / 2, Math.hypot(cv.width, cv.height) * 0.55); vg.addColorStop(0, 'rgba(255,0,30,0)'); vg.addColorStop(1, 'rgba(255,20,40,' + (k2 * 3).toFixed(3) + ')'); ctx.fillStyle = vg; ctx.fillRect(0, 0, cv.width, cv.height); }
+  // 屏幕外地图武器指示
+  if (G.mapw) {
+    const mg = 34 * dpr;
+    for (const mw of G.mapw) {
+      if (mw.mounted) continue;
+      const sx = TX + K * mw.x, sy = TY + K * mw.y;
+      if (sx > mg && sx < cv.width - mg && sy > mg * 3 && sy < cv.height - mg) continue;
+      const cxs = cv.width / 2, cys = cv.height / 2, dx = sx - cxs, dy = sy - cys;
+      const t2 = Math.min((cv.width / 2 - mg) / Math.abs(dx || 1e-3), (cv.height / 2 - mg * 2) / Math.abs(dy || 1e-3));
+      const ex = cxs + dx * t2, ey = cys + dy * t2, ang = Math.atan2(dy, dx), R2 = 20 * dpr;
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = 'rgba(16,14,30,.8)'; ctx.beginPath(); ctx.arc(ex, ey, R2, 0, TAU); ctx.fill();
+      ctx.lineWidth = 2.5 * dpr; ctx.strokeStyle = '#ffd86a'; ctx.stroke();
+      ctx.fillStyle = '#ffd86a'; ctx.beginPath();
+      ctx.moveTo(ex + Math.cos(ang) * (R2 + 9 * dpr), ey + Math.sin(ang) * (R2 + 9 * dpr));
+      ctx.lineTo(ex + Math.cos(ang + 0.5) * (R2 + 1), ey + Math.sin(ang + 0.5) * (R2 + 1));
+      ctx.lineTo(ex + Math.cos(ang - 0.5) * (R2 + 1), ey + Math.sin(ang - 0.5) * (R2 + 1)); ctx.fill();
+      const nm = mw.kind === 'tank' ? 'tankBody' : mw.kind + 'Base', bb = MWB[nm];
+      ctx.drawImage(Sp.mapw(nm), ex - R2 * 0.8, ey - R2 * 0.8 * bb[1] / bb[0], R2 * 1.6, R2 * 1.6 * bb[1] / bb[0]);
+      ctx.globalAlpha = 1;
+    }
+  }
   // 屏幕白闪
   if (G.flash > 0) { ctx.globalAlpha = Math.min(0.7, G.flash); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); ctx.globalAlpha = 1; }
   if (PROF) prof('end');

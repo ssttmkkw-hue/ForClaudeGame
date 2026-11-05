@@ -98,10 +98,11 @@ Core.shootAt = shootAt;
 Core.sfx = n => Audio().sfx(n);
 Core.fx = o => { G.fx.push(o); };
 Core.shake = v => { G.shake = Math.max(G.shake, v); };
+Core.src = null; // 当前伤害来源（'mapw' / 'dash' / 'ult'），用于击杀归属
 
 /* ------------------------- 属性 ------------------------- */
 function recalc() {
-  const S = { might: 0, cd: 0, area: 0, move: 0, hp: 0, hpMul: 0, regen: 0, armor: 0, magnet: 0, growth: 0, greed: 0, luck: 0, amount: 0, revive: 0, reroll: 0, skip: 0 };
+  const S = { might: 0, cd: 0, area: 0, move: 0, hp: 0, hpMul: 0, regen: 0, armor: 0, magnet: 0, growth: 0, greed: 0, luck: 0, amount: 0, revive: 0, reroll: 0, skip: 0, dashm: 0, ultm: 0, mapwm: 0 };
   const meta = Save.data.meta;
   for (const id in SF.META) { const lv = meta[id] || 0; if (lv) S[SF.META[id].key] += SF.META[id].per * lv; }
   const m = G.ch.mod;
@@ -138,6 +139,7 @@ Game.start = function (stageId, charId) {
   recalc();
   G.revives = G.stats.revive; G.rerolls = G.stats.reroll; G.skips = G.stats.skip;
   addWeapon(ch.start);
+  SF.Feat.start();
   // 开场预热：少量敌人，避免空等
   for (let i = 0; i < 7; i++) { const pt = edgePoint(Math.random() * TAU, -10 + Math.random() * 40); spawnEnemy(G.waveDefs[0].e, pt[0], pt[1]); }
   SF.Render && SF.Render.onStart && SF.Render.onStart();
@@ -148,15 +150,17 @@ Game.start = function (stageId, charId) {
 /* ------------------------- 敌人 ------------------------- */
 function spawnEnemy(id, x, y, o) {
   const def = SF.ENEMIES[id], st = G.stage, t = G.time / 60;
-  const ts = def.boss ? 1 : 1 + t * 0.25 + t * t * 0.008;
+  const late = Math.max(0, t - 4);
+  const ts = def.boss ? Math.min(3, Math.max(1, 1 + (G.level - 12) * 0.05)) : (1 + t * 0.25 + t * t * 0.008 + late * late * 0.2) * (G.frenzy ? 1.3 : 1);
   const hp = def.hp * (def.boss ? Math.sqrt(st.hpMul) : st.hpMul) * ts;
+  const fz = G.frenzy && !def.boss;
   const e = {
-    id: G.nextId++, def, ai: def.ai, x, y, r: def.r, hp, maxHp: hp, spd: def.spd * (0.92 + Math.random() * 0.16),
-    dmg: def.dmg * st.dmgMul * (1 + t * 0.06), xp: def.xp * st.xpMul, kx: 0, ky: 0, flash: 0, slow: 1, slowT: 0, stun: 0,
-    t: Math.random() * 6, face: 1, hitT: [0, 0, 0, 0, 0, 0], cd: 1 + Math.random() * 2, st: 0, dead: false, boss: !!def.boss,
+    id: G.nextId++, def, ai: def.ai, x, y, r: def.r, hp, maxHp: hp, spd: def.spd * (0.92 + Math.random() * 0.16) * (fz ? 1.12 : 1),
+    dmg: def.dmg * st.dmgMul * (1 + t * 0.06 + late * 0.08) * (fz ? 1.15 : 1), xp: def.xp * st.xpMul, kx: 0, ky: 0, flash: 0, slow: 1, slowT: 0, stun: 0,
+    t: Math.random() * 6, face: 1, hitT: [0, 0, 0, 0, 0, 0, 0, 0], cd: 1 + Math.random() * 2, st: 0, dead: false, boss: !!def.boss,
     elite: false, spr: SF.Sprites.enemy(def), sc: 1, nv: 0, pi: 0, bst: '', bt: 0, spiral: 0, sp: 0, sa: 0, dx: 0, dy: 0, big: false
   };
-  if (o && o.elite) { e.elite = true; e.hp = e.maxHp = e.maxHp * 6; e.r *= 1.3; e.sc = 1.3; e.dmg *= 1.3; e.xp *= 6; }
+  if (o && o.elite) { e.elite = true; e.hp = e.maxHp = e.maxHp * (G.frenzy ? 8 : 6); e.r *= 1.3; e.sc = 1.3; e.dmg *= 1.3; e.xp *= 6; }
   if (e.r >= 26) { e.big = true; G.bigs.push(e); }
   if (e.boss) { e.hitFlashNone = true; e.cd = 2.5; }
   G.enemies.push(e);
@@ -171,6 +175,7 @@ function edgePoint(a, extra) {
   return [G.p.x + c * r, G.p.y + s * r];
 }
 function ringPos(extra) { return edgePoint(Math.random() * TAU, extra); }
+Core.ringPos = ringPos;
 
 function runEvent(ev) {
   const P = G.p;
@@ -211,7 +216,7 @@ function director(dt) {
     const w = G.waveDefs[i];
     if (t < w.t0) continue;
     const k = Math.min(1, (t - w.t0) / Math.max(1, st.bossAt - w.t0));
-    G.acc[i] += (w.r0 + (w.r1 - w.r0) * k) * dt * st.rate;
+    G.acc[i] += (w.r0 + (w.r1 - w.r0) * k) * dt * st.rate * (G.frenzy ? 1.6 : 1);
     while (G.acc[i] >= 1) {
       G.acc[i] -= 1;
       if (G.enemies.length < CAP_ENEMY) { const [x, y] = ringPos(Math.random() * 50); spawnEnemy(w.e, x, y); }
@@ -225,7 +230,7 @@ function hurt(e, dmg, kx, ky, noText) {
   if (e.dead) return;
   let crit = false;
   if (Math.random() < 0.05 + G.stats.luck * 0.5) { crit = true; dmg *= 2; }
-  e.hp -= dmg; e.flash = 0.09;
+  e.hp -= dmg; e.flash = 0.09; e.lastSrc = Core.src;
   if (!e.boss) { const k = e.big ? 0.25 : 1; e.kx += kx * k; e.ky += ky * k; }
   if (kx || ky) { const d = Math.hypot(kx, ky) || 1; SF.VFX.hit(e.x - kx / d * e.r * 0.6, e.y - ky / d * e.r * 0.6 - e.r * 0.2, kx, ky, crit ? '#ffd24a' : null); }
   if (!noText) popText(e.x, e.y - e.r, Math.round(dmg), crit ? '#ffd24a' : '#fff', crit);
@@ -266,6 +271,8 @@ Core.blockBullets = function (x, y, r) {
 function hurtPlayer(dmg) {
   const P = G.p;
   if (P.inv > 0 || P.dead || G.endT !== undefined) return;
+  dmg = SF.Feat.onPlayerHurt(dmg);
+  if (dmg <= 0) { P.inv = 0.25; return; }
   dmg = Math.max(1, Math.round(dmg - G.stats.armor));
   P.hp -= dmg; P.inv = 0.5; G.hurtFlash = 1; G.shake = Math.max(G.shake, 5); G.damageTaken += dmg;
   popText(P.x, P.y - 24, '-' + dmg, '#ff6a7a', true);
@@ -331,6 +338,7 @@ function dropLoot(e) {
 function kill(e) {
   if (e.dead) return;
   e.dead = true; G.kills++;
+  SF.Feat.onKill(e);
   const col = e.def.c1;
   if (e.boss) {
     G.bossKills++;
@@ -517,7 +525,9 @@ function updateProj(dt) {
       if (p.rehit) { if (e.hitT[p.slot] > G.time) return; e.hitT[p.slot] = G.time + p.rehit; }
       else { if (p.hit.indexOf(e.id) !== -1) return; p.hit.push(e.id); }
       const sp = Math.hypot(p.vx, p.vy) || 1;
+      Core.src = p.src || null;
       hurt(e, p.dmg, p.vx / sp * p.kb, p.vy / sp * p.kb);
+      Core.src = null;
       if (p.onHit) p.onHit(p, e);
       if (!p.rehit) { if (p.pierce <= 0) { p.dead = true; stop = true; } else p.pierce--; }
     };
@@ -559,7 +569,7 @@ function updatePickups(dt) {
       const d = Math.sqrt(d2) || 1;
       g.x += dx / d * g.sp * dt; g.y += dy / d * g.sp * dt;
       if (d < P.r + 8) {
-        g.dead = true; addXp(g.v);
+        g.dead = true; addXp(g.v); SF.Feat.onGem();
         if (G.time - G.lastGemSfx > 0.04) { Audio().sfx('gem'); G.lastGemSfx = G.time; }
       }
     }
@@ -602,7 +612,7 @@ function updateFx(dt) {
         const test = e => {
           if (e.dead) return;
           const dx = e.x - f.x, dy = e.y - f.y, rr = f.r + e.r;
-          if (dx * dx + dy * dy < rr * rr) { const d = Math.hypot(dx, dy) || 1; hurt(e, f.dmg, dx / d * 260, dy / d * 260); e.hitT[f.slot] = 0; }
+          if (dx * dx + dy * dy < rr * rr) { const d = Math.hypot(dx, dy) || 1; Core.src = f.src || null; hurt(e, f.dmg, dx / d * 260, dy / d * 260); Core.src = null; }
         };
         for (let k = 0; k < list.length; k++) test(list[k]);
         for (let k = 0; k < G.bigs.length; k++) test(G.bigs[k]);
@@ -635,7 +645,7 @@ function updateFx(dt) {
         const n = 10;
         for (let k = 0; k < n; k++) shootAt(f.x, f.y, k / n * TAU, 130, f.dmg * 0.35, f.col, 6);
       }
-    } else if (f.k === 'ring' || f.k === 'bolt' || f.k === 'beam' || f.k === 'pillar') {
+    } else if (f.k === 'ring' || f.k === 'bolt' || f.k === 'beam' || f.k === 'pillar' || f.k === 'ghost') {
       f.life -= dt;
       if (f.follow) { f.x = P.x; f.y = P.y; }
       if (f.life <= 0) f.dead = true;
@@ -699,7 +709,7 @@ Game.applyOption = function (o) {
   if (o.type === 'w') { const w = G.weapons.find(x => x.id === o.id); if (w && w.lv < SF.MAX_WLV) { w.lv++; w.s = SF.weaponStats(w.id, w.lv, w.evo); } }
   else if (o.type === 'evo') {
     const w = G.weapons.find(x => x.id === o.id);
-    if (w && !w.evo) { w.evo = true; w.s = SF.weaponStats(w.id, w.lv, true); G.flash = 0.8; UIx().banner('✨ ' + SF.WEAPONS[w.id].evo.name + ' · 武器进化！', 2200); }
+    if (w && !w.evo) { w.evo = true; G.run.evos++; w.s = SF.weaponStats(w.id, w.lv, true); G.flash = 0.8; UIx().banner('✨ ' + SF.WEAPONS[w.id].evo.name + ' · 武器进化！', 2200); }
   }
   else if (o.type === 'wn') { if (G.weapons.length < MAX_WEAPONS && !G.weapons.some(x => x.id === o.id)) addWeapon(o.id); }
   else if (o.type === 'p' || o.type === 'pn') {
@@ -707,7 +717,7 @@ Game.applyOption = function (o) {
     if (cur < SF.PASSIVES[o.id].max && (cur > 0 || Object.keys(G.passives).length < MAX_PASSIVES)) { G.passives[o.id] = cur + 1; recalc(); }
   }
   else if (o.type === 'heal') healPlayer(G.p.maxHp * 0.4);
-  else if (o.type === 'gold') { G.gold += Math.round(40 * G.stage.goldMul); popText(G.p.x, G.p.y - 30, '+金币', '#ffd24a', true); }
+  else if (o.type === 'gold') { G.gold += Math.round(20 * G.stage.goldMul); popText(G.p.x, G.p.y - 30, '+金币', '#ffd24a', true); }
 };
 function openLevelUp() {
   G.state = 'levelup';
@@ -739,7 +749,7 @@ Game.skipLevel = function () {
   UIx().hideModal();
 };
 function openChest() {
-  G.state = 'levelup'; G.chests--;
+  G.state = 'levelup'; G.chests--; G.run.chests++;
   const opts = Game.makeOptions(3).filter(o => o.type !== 'heal' && o.type !== 'gold');
   const list = [];
   for (const o of opts) { Game.applyOption(o); list.push(o); }
@@ -756,12 +766,14 @@ Game.closeChest = function () {
 
 /* ------------------------- 主更新 ------------------------- */
 function updatePlayer(dt) {
-  const P = G.p, v = SF.Input.vec();
-  const sp = 150 * G.stats.move;
-  P.vx = v[0] * sp; P.vy = v[1] * sp;
-  P.x += P.vx * dt; P.y += P.vy * dt;
-  P.moving = (v[0] !== 0 || v[1] !== 0);
-  if (Math.abs(v[0]) > 0.1) P.face = v[0] > 0 ? 1 : -1;
+  const P = G.p;
+  if (!SF.Feat.movePlayer(dt)) {
+    const v = SF.Input.vec(), sp = 150 * G.stats.move;
+    P.vx = v[0] * sp; P.vy = v[1] * sp;
+    P.x += P.vx * dt; P.y += P.vy * dt;
+    P.moving = (v[0] !== 0 || v[1] !== 0);
+    if (Math.abs(v[0]) > 0.1) P.face = v[0] > 0 ? 1 : -1;
+  }
   P.t += dt;
   if (P.inv > 0) P.inv -= dt;
   if (G.hurtFlash > 0) G.hurtFlash -= dt * 2.5;
@@ -783,6 +795,7 @@ Game.update = function (dt) {
   director(dt);
   buildGrid();
   for (let i = 0; i < G.weapons.length; i++) SF.WL.update(G.weapons[i], dt);
+  SF.Feat.update(dt);
   updateProj(dt);
   updateEnemies(dt);
   updateEProj(dt);
@@ -834,9 +847,11 @@ function finish(win, quit) {
   for (const a of SF.ACHS) {
     if (!d.ach[a.id] && a.chk(ctx)) { d.ach[a.id] = 1; d.gold += a.gold; d.totalGold += a.gold; newAch.push(a); ctx.totalGold = d.totalGold; ctx.chars = d.chars; }
   }
+  if (G.mount) SF.Feat.dismount(false);
+  const run = Object.assign({}, G.run, { runs: 1, time: Math.floor(t), level: G.level, gold: total, win });
+  const questDone = SF.Quests.onRunEnd(run);
   Save.save();
   Audio().music(null);
-  if (!win && !quit) { /* 失败音效已播放 */ }
-  UIx().showResult({ win, quit: !!quit, time: t, kills: G.kills, level: G.level, gold: G.gold, bonus, total, newAch, stage: st, unlocked, bosses: G.bossKills });
+  UIx().showResult({ win, quit: !!quit, time: t, kills: G.kills, level: G.level, gold: G.gold, bonus, total, newAch, stage: st, unlocked, bosses: G.bossKills, questDone, run });
 }
 })(window.SF = window.SF || {});

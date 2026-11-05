@@ -5,7 +5,7 @@ const A = SF.Audio = {};
 let ctx = null, master = null, sfxGain = null, musGain = null, noiseBuf = null;
 let soundOn = true, musicOn = true;
 const last = {};
-const GAP = { hit: 0.05, kill: 0.04, shoot: 0.08, gem: 0.04, coin: 0.05, lightning: 0.1, explode: 0.08, hurt: 0.15 };
+const GAP = { flame: 0.12, cannon: 0.06, hit: 0.05, kill: 0.04, shoot: 0.08, gem: 0.04, coin: 0.05, lightning: 0.1, explode: 0.08, hurt: 0.15 };
 
 A.init = function () {
   if (ctx) return;
@@ -75,7 +75,11 @@ const SFX = {
   magnet:    () => tone(300, 0.4, 'sine', 0.25, 4),
   nova:      () => { tone(300, 0.4, 'sine', 0.2, 2.5); noise(0.3, 0.1, 6000); },
   beam:      () => { tone(900, 0.25, 'sawtooth', 0.1, 0.3); },
-  slam:      () => { noise(0.25, 0.25, 600); tone(70, 0.25, 'sine', 0.3, 0.5); }
+  slam:      () => { noise(0.25, 0.25, 600); tone(70, 0.25, 'sine', 0.3, 0.5); },
+  dash:      () => { noise(0.18, 0.22, 5000); tone(500, 0.16, 'sine', 0.18, 2.2); },
+  ult:       () => { tone(220, 0.8, 'sawtooth', 0.22, 3); tone(330, 0.8, 'square', 0.1, 3, 0.1); noise(0.8, 0.2, 2500); },
+  cannon:    () => { noise(0.18, 0.3, 700); tone(110, 0.18, 'square', 0.2, 0.4); },
+  flame:     () => noise(0.14, 0.08, 1800)
 };
 
 A.sfx = function (name) {

@@ -1115,6 +1115,64 @@ Sp.overlay = function (kind, w, h) {
   return (overlayCache[key] = c);
 };
 
+/* ======================= 地图武器 ======================= */
+const MW = {
+  cannonBase(g) { // 64x64，中心
+    g.drawImage(Sp.shadow(), -30, 10, 60, 18);
+    part(g, () => { g.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + Math.PI / 8; g.lineTo(Math.cos(a) * 27, Math.sin(a) * 22 + 4); } g.closePath(); }, '#8a8478', 0, 4, 27, { lw: 2.5 });
+    part(g, () => { g.beginPath(); g.ellipse(0, 2, 19, 15, 0, 0, TAU); }, '#5a5e6a', 0, 2, 19, { lw: 2 });
+    for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; circ(g, Math.cos(a) * 15, Math.sin(a) * 11 + 2, 1.8, '#c8ccd8'); }
+    for (const sx of [-1, 1]) { g.fillStyle = '#ffd24a'; g.fillRect(sx * 24 - 2, -2, 4, 10); }
+  },
+  cannonBarrel(g) { // 指向 +x，原点为旋转轴
+    part(g, () => { g.beginPath(); g.roundRect(0, -7, 40, 14, 4); }, '#4a4e5a', 20, 0, 18, { lw: 2.2 });
+    part(g, () => { g.beginPath(); g.roundRect(34, -9, 10, 18, 3); }, '#6a6e7a', 39, 0, 9, { lw: 2 });
+    line(g, [6, -3, 32, -3], 2, 'rgba(255,255,255,.35)');
+    part(g, () => { g.beginPath(); g.arc(0, 0, 13, 0, TAU); }, '#6a7080', 0, 0, 13, { lw: 2.2, hl: 0.5 });
+    circ(g, 0, 0, 4, '#ffd24a');
+  },
+  flamerBase(g) {
+    g.drawImage(Sp.shadow(), -30, 10, 60, 18);
+    part(g, () => { g.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; g.lineTo(Math.cos(a) * 26, Math.sin(a) * 21 + 4); } g.closePath(); }, '#6a5a50', 0, 4, 26, { lw: 2.5 });
+    for (const x of [-12, 12]) { part(g, () => { g.beginPath(); g.roundRect(x - 7, -14, 14, 26, 6); }, '#d8342a', x, -1, 12, { lw: 2, hl: 0.5 }); g.fillStyle = '#ffd24a'; g.fillRect(x - 7, -4, 14, 3); }
+    circ(g, 0, 8, 5, '#ff8a2a');
+  },
+  flamerNozzle(g) {
+    part(g, () => { g.beginPath(); g.moveTo(0, -6); g.lineTo(30, -5); g.lineTo(38, -9); g.lineTo(38, 9); g.lineTo(30, 5); g.lineTo(0, 6); g.closePath(); }, '#7a7068', 20, 0, 18, { lw: 2.2 });
+    part(g, () => { g.beginPath(); g.arc(0, 0, 11, 0, TAU); }, '#8a5a3a', 0, 0, 11, { lw: 2 });
+    g.save(); g.shadowColor = '#ff7a2a'; g.shadowBlur = 8; circ(g, 38, 0, 4, '#ffb44a'); g.restore();
+  },
+  tankBody(g) { // 指向 +x，76x52
+    g.drawImage(Sp.shadow(), -40, 12, 80, 22);
+    for (const sy of [-1, 1]) {
+      part(g, () => { g.beginPath(); g.roundRect(-34, sy * 18 - 7, 68, 14, 7); }, '#2e2a26', 0, sy * 18, 30, { lw: 2.2, hl: 0.2 });
+      for (let i = 0; i < 9; i++) line(g, [-29 + i * 7.3, sy * 18 - 6, -29 + i * 7.3, sy * 18 + 6], 1.6, 'rgba(120,110,100,.8)');
+    }
+    part(g, () => { g.beginPath(); g.moveTo(-30, -14); g.lineTo(26, -14); g.lineTo(34, -6); g.lineTo(34, 6); g.lineTo(26, 14); g.lineTo(-30, 14); g.closePath(); }, '#6a7a42', 0, 0, 32, { lw: 2.4 });
+    part(g, () => { g.beginPath(); g.rect(-26, -10, 14, 20); }, '#5a6a36', -19, 0, 10, { lw: 1.6, hl: false });
+    for (const [x, y] of [[-28, -11], [-28, 11], [24, -11], [24, 11]]) circ(g, x, y, 1.6, '#c8d0a0');
+    g.fillStyle = '#ffd24a'; g.fillRect(28, -3, 4, 6);
+  },
+  tankTurret(g) { // 指向 +x，原点为旋转轴
+    part(g, () => { g.beginPath(); g.roundRect(4, -4.5, 34, 9, 3); }, '#4a5430', 20, 0, 16, { lw: 2 });
+    part(g, () => { g.beginPath(); g.roundRect(34, -6, 8, 12, 2); }, '#3a4226', 38, 0, 6, { lw: 1.8 });
+    part(g, () => { g.beginPath(); g.ellipse(0, 0, 15, 13, 0, 0, TAU); }, '#7a8a4c', 0, 0, 15, { lw: 2.2, hl: 0.5 });
+    part(g, () => { g.beginPath(); g.arc(-3, -2, 5, 0, TAU); }, '#5a6a36', -3, -2, 5, { lw: 1.5 });
+  },
+  shell(g) {
+    g.save(); g.shadowColor = '#ffb44a'; g.shadowBlur = 8;
+    part(g, () => { g.beginPath(); g.arc(0, 0, 9, 0, TAU); }, '#3a3a44', 0, 0, 9, { lw: 2, hl: 0.7 });
+    g.restore();
+  }
+};
+const MWBOX = { cannonBase: [64, 64, 32, 30], cannonBarrel: [60, 32, 14, 16], flamerBase: [64, 64, 32, 30], flamerNozzle: [56, 32, 12, 16],
+  tankBody: [84, 64, 42, 32], tankTurret: [60, 32, 18, 16], shell: [28, 28, 14, 14] };
+Sp.MWBOX = MWBOX;
+Sp.mapw = function (name) {
+  const [w, h, ox, oy] = MWBOX[name];
+  return fx('mw' + name, w * S, h * S, (g) => { g.scale(S, S); g.translate(ox, oy); MW[name](g); });
+};
+
 /* 供图标等模块复用的绘图工具 */
 Sp.lib = { part, limb, line, circ, ell, polyPath, metal, glowEye, spikes, shade, rgba, mix, mk, OUTC };
 

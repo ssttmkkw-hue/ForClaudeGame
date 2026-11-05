@@ -172,7 +172,10 @@ SF.META = {
   luck:   { name: '好运',     icon: '🍀', key: 'luck',   per: 0.04, max: 5, base: 120, txt: '幸运 +4%' },
   revive: { name: '凤凰羽',   icon: '🪶', key: 'revive', per: 1, max: 2, base: 800, txt: '每局复活 +1 次' },
   reroll: { name: '命运骰子', icon: '🎲', key: 'reroll', per: 1, max: 3, base: 250, txt: '每局刷新 +1 次' },
-  skip:   { name: '果断放弃', icon: '⏭️', key: 'skip',   per: 1, max: 3, base: 150, txt: '每局跳过 +1 次' }
+  skip:   { name: '果断放弃', icon: '⏭️', key: 'skip',   per: 1, max: 3, base: 150, txt: '每局跳过 +1 次' },
+  dashm:  { name: '冲刺精通', icon: '💨', key: 'dashm',  per: 1, max: 5, base: 120, txt: '冲刺冷却 -8%，伤害 +15%' },
+  ultm:   { name: '星陨之力', icon: '☄️', key: 'ultm',   per: 1, max: 5, base: 180, txt: '大招冷却 -6%，伤害 +20%' },
+  mapwm:  { name: '机械专精', icon: '🛠️', key: 'mapwm',  per: 1, max: 5, base: 100, txt: '地图武器持续时间 +20%' }
 };
 SF.metaCost = (id, lv) => Math.round(SF.META[id].base * Math.pow(1.7, lv) / 5) * 5;
 
@@ -299,7 +302,7 @@ SF.STAGES = {
   }),
   desert: mk({
     id: 'desert', name: '赤沙遗迹', icon: '🏜️', desc: '烈日下的古老遗迹，蝎王盘踞于此。',
-    bossAt: 540, hpMul: 1.25, dmgMul: 1.15, xpMul: 1.6, goldMul: 1.6, diff: 2, rate: 0.8,
+    bossAt: 540, hpMul: 1.25, dmgMul: 1.15, xpMul: 1.5, goldMul: 1.6, diff: 2, rate: 0.8,
     ground: ['#c9a463', '#bf9a58', '#d3b072'], deco: 'desert', music: 1,
     waves(w) {
       return [
@@ -317,7 +320,7 @@ SF.STAGES = {
   }),
   frost: mk({
     id: 'frost', name: '霜冻荒原', icon: '❄️', desc: '暴风雪中的亡灵军团，小心巫妖。',
-    bossAt: 540, hpMul: 1.5, dmgMul: 1.35, xpMul: 2.3, goldMul: 2.4, diff: 3, rate: 0.68,
+    bossAt: 540, hpMul: 1.5, dmgMul: 1.35, xpMul: 1.95, goldMul: 2.4, diff: 3, rate: 0.68,
     ground: ['#d6e6f2', '#c8dcec', '#e4f0fa'], deco: 'frost', music: 2,
     waves(w) {
       return [
@@ -335,7 +338,7 @@ SF.STAGES = {
   }),
   lava: mk({
     id: 'lava', name: '熔岩深渊', icon: '🌋', desc: '最终的试炼。击败炎魔领主，成为传说。',
-    bossAt: 600, hpMul: 1.8, dmgMul: 1.6, xpMul: 3.0, goldMul: 3.5, diff: 4, rate: 0.68,
+    bossAt: 600, hpMul: 1.8, dmgMul: 1.6, xpMul: 2.5, goldMul: 3.5, diff: 4, rate: 0.68,
     ground: ['#3a2a2e', '#322428', '#443236'], deco: 'lava', music: 3,
     waves(w) {
       return [
